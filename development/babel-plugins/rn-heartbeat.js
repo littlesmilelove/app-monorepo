@@ -84,7 +84,10 @@ function getFunctionName(funcPath) {
     let hookName = null;
     if (callee.isIdentifier()) {
       hookName = callee.node.name;
-    } else if (callee.isMemberExpression() && callee.get('property').isIdentifier()) {
+    } else if (
+      callee.isMemberExpression() &&
+      callee.get('property').isIdentifier()
+    ) {
       hookName = callee.get('property').node.name;
     }
     if (hookName && REACT_HOOKS_WITH_CALLBACK.includes(hookName)) {
@@ -104,7 +107,18 @@ function getFunctionName(funcPath) {
     const property = parentPath.get('callee.property');
     if (property.isIdentifier()) {
       const methodName = property.node.name;
-      if (['map', 'filter', 'reduce', 'forEach', 'find', 'some', 'every', 'flatMap'].includes(methodName)) {
+      if (
+        [
+          'map',
+          'filter',
+          'reduce',
+          'forEach',
+          'find',
+          'some',
+          'every',
+          'flatMap',
+        ].includes(methodName)
+      ) {
         const componentName = getEnclosingComponentName(funcPath);
         if (componentName) {
           return `${componentName}@${methodName}Callback`;
@@ -172,6 +186,8 @@ module.exports = function rnHeartbeatPlugin({ types: t }) {
     `${path.sep}packages${path.sep}kit${path.sep}src${path.sep}views${path.sep}`,
     `${path.sep}packages${path.sep}kit${path.sep}src${path.sep}hooks${path.sep}`,
     `${path.sep}packages${path.sep}kit-bg${path.sep}src${path.sep}services${path.sep}`,
+    `${path.sep}packages${path.sep}kit-bg${path.sep}src${path.sep}providers${path.sep}`,
+    `${path.sep}packages${path.sep}kit-bg${path.sep}src${path.sep}dbs${path.sep}`,
     `${path.sep}packages${path.sep}shared${path.sep}src${path.sep}request${path.sep}`,
   ];
 
@@ -206,7 +222,6 @@ module.exports = function rnHeartbeatPlugin({ types: t }) {
         const inDenyList = denyList.some((s) => filename.includes(s));
         if (!inAllowList || inDenyList) {
           state.skipFile = true;
-          return;
         }
         // no-op; we rely on globalThis.__recordFunctionStart/__recordFunctionEnd installed at startup
       },
@@ -256,10 +271,7 @@ module.exports = function rnHeartbeatPlugin({ types: t }) {
         ];
         if (line !== null) {
           metaProps.push(
-            t.objectProperty(
-              t.identifier('line'),
-              t.numericLiteral(line),
-            ),
+            t.objectProperty(t.identifier('line'), t.numericLiteral(line)),
           );
         }
         const startId = funcPath.scope.generateUidIdentifier('_pf');
