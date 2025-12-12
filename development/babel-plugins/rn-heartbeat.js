@@ -185,6 +185,8 @@ module.exports = function rnHeartbeatPlugin({ types: t }) {
   const allowList = [
     `${path.sep}packages${path.sep}kit${path.sep}src${path.sep}views${path.sep}`,
     `${path.sep}packages${path.sep}kit${path.sep}src${path.sep}hooks${path.sep}`,
+    `${path.sep}packages${path.sep}kit${path.sep}src${path.sep}provider${path.sep}`,
+    `${path.sep}packages${path.sep}kit${path.sep}src${path.sep}states${path.sep}`,
     `${path.sep}packages${path.sep}kit-bg${path.sep}src${path.sep}services${path.sep}`,
     `${path.sep}packages${path.sep}kit-bg${path.sep}src${path.sep}providers${path.sep}`,
     `${path.sep}packages${path.sep}kit-bg${path.sep}src${path.sep}dbs${path.sep}`,

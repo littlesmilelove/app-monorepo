@@ -129,9 +129,29 @@
         <div class="text-xs text-slate-400">Ctrl + Mouse Wheel to zoom, Shift + Wheel (or trackpad horizontal scroll) to pan</div>
         <div id="functionTrackWrapper" class="overflow-x-auto">
           <div id="timelineAxis" class="relative h-6 mb-2 text-[11px] text-slate-400"></div>
+          <div class="text-[11px] text-slate-400 mb-1 flex items-center gap-2 px-1">
+            <span class="inline-flex items-center gap-1">
+              <span class="module-pin example"></span>
+              Module loads
+            </span>
+            <span class="inline-flex items-center gap-1">
+              <span class="flame-bar example"></span>
+              Function calls
+            </span>
+          </div>
+          <div id="moduleTrack" class="timeline-track module-track"></div>
           <div id="functionTrack" class="timeline-track"></div>
         </div>
-        <div id="moduleLegend" class="flex flex-wrap gap-2 text-xs text-slate-300"></div>
+        <div class="flex flex-col gap-3">
+          <div>
+            <div class="text-xs text-slate-400 mb-1">Function modules</div>
+            <div id="moduleLegend" class="flex flex-wrap gap-2 text-xs text-slate-300"></div>
+          </div>
+          <div>
+            <div class="text-xs text-slate-400 mb-1">Module load paths</div>
+            <div id="moduleLoadLegend" class="flex flex-wrap gap-2 text-xs text-slate-300"></div>
+          </div>
+        </div>
         <div id="selectionDetails" class="text-sm text-slate-200 bg-dark-bg border border-dark-border rounded p-3 mt-2 hidden">
           <div class="flex items-center justify-between">
             <div class="font-semibold" id="selTitle"></div>

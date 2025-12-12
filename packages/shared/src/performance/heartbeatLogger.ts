@@ -65,6 +65,8 @@ function pickModule(file: string) {
   if (!file) return 'unknown';
   if (file.includes('packages/kit/src/views/')) return 'kit/views';
   if (file.includes('packages/kit/src/hooks/')) return 'kit/hooks';
+  if (file.includes('packages/kit/src/provider/')) return 'kit/provider';
+  if (file.includes('packages/kit/src/states/')) return 'kit/states';
   if (file.includes('packages/kit-bg/src/')) {
     const parts = file.split('/');
     const idx = parts.indexOf('kit-bg');

@@ -13,9 +13,14 @@ const state = {
     zoom: 1,
     displaySpan: 0,
     collapseGaps: true,
+    collapses: [],
+    userAdjusted: false,
   },
   selection: null,
 };
+
+const GAP_THRESHOLD_MS = 5000;
+const GAP_COLLAPSED_MS = 200;
 
 const palette = [
   '#60a5fa',
@@ -47,6 +52,41 @@ async function fetchJSON(url) {
     throw new Error(text || `Request failed: ${res.status}`);
   }
   return res.json();
+}
+
+function normalizePath(p) {
+  return typeof p === 'string' ? p.replace(/\\/g, '/') : '';
+}
+
+function deriveModuleFromPath(filePath) {
+  if (!filePath) return 'unknown';
+  const normalized = normalizePath(filePath);
+  const parts = normalized.split('/').filter(Boolean);
+  const pkgIdx = parts.indexOf('packages');
+  if (pkgIdx >= 0 && parts[pkgIdx + 1]) {
+    const pkg = parts[pkgIdx + 1];
+    const scope = parts[pkgIdx + 2];
+    if (scope && scope !== 'src') {
+      return `${pkg}/${scope}`;
+    }
+    const afterSrc = parts[pkgIdx + 3];
+    return afterSrc ? `${pkg}/${afterSrc}` : pkg;
+  }
+  return parts.slice(0, 2).join('/') || normalized;
+}
+
+function pickTimestamp(event, payload) {
+  const candidate =
+    payload?.absoluteTime ??
+    event?.absoluteTime ??
+    payload?.timestamp ??
+    event?.timestamp ??
+    payload?.time ??
+    event?.time ??
+    payload?.ts ??
+    event?.ts;
+  const num = Number(candidate);
+  return Number.isFinite(num) ? num : 0;
 }
 
 function formatNumber(num) {
@@ -184,22 +224,77 @@ function buildFunctionEvents() {
   return functionEvents
     .map((e) => {
       const payload = e.data || e;
-      const endTs = Number(payload.absoluteTime ?? e.timestamp ?? payload.timestamp ?? 0);
+      const endTs = pickTimestamp(e, payload);
       const dur = Number(payload.duration || 0);
       const startTs = Math.max(0, endTs - dur);
       return {
+        type: 'function',
         name: payload.name || 'unknown',
         module: payload.module || 'unknown',
         duration: dur,
         start: startTs,
         end: endTs,
-        file: payload.file || '',
+        file: normalizePath(payload.file || ''),
         line: payload.line || 0,
         stack: Array.isArray(payload.stack) ? payload.stack : [],
       };
     })
     .filter((e) => e.duration > 0)
     .sort((a, b) => a.start - b.start);
+}
+
+function buildModuleLoadEvents() {
+  const moduleLoads = state.sessionData?.events?.module_load || [];
+  return moduleLoads
+    .map((e) => {
+      const payload = e.data || e;
+      const ts = pickTimestamp(e, payload);
+      const duration = Math.max(Number(payload.duration || 0), 0);
+      const path = normalizePath(payload.path || payload.module || 'unknown');
+      return {
+        type: 'module',
+        path,
+        module: deriveModuleFromPath(path),
+        duration,
+        start: ts,
+        end: ts + duration,
+      };
+    })
+    .filter((e) => Number.isFinite(e.start))
+    .sort((a, b) => a.start - b.start);
+}
+
+function buildCollapseMap(events, minTs, collapseGaps) {
+  if (!events.length) {
+    return { collapses: [], displaySpan: 0 };
+  }
+  const sorted = [...events].sort((a, b) => a.start - b.start);
+  const collapses = [];
+  let offset = 0;
+  let prevStart = sorted[0]?.start ?? minTs;
+  sorted.forEach((ev) => {
+    const gap = ev.start - prevStart;
+    if (collapseGaps && gap > GAP_THRESHOLD_MS) {
+      offset += gap - GAP_COLLAPSED_MS;
+      collapses.push({ at: ev.start, offset });
+    }
+    prevStart = ev.start;
+  });
+  const maxEnd = Math.max(...events.map((ev) => ev.end ?? ev.start));
+  const displaySpan = Math.max(maxEnd - minTs - offset, 1);
+  return { collapses, displaySpan };
+}
+
+function mapCollapsedTime(ts, minTs, collapses) {
+  let offset = 0;
+  for (let i = 0; i < collapses.length; i += 1) {
+    if (ts >= collapses[i].at) {
+      offset = collapses[i].offset;
+    } else {
+      break;
+    }
+  }
+  return Math.max(0, ts - minTs - offset);
 }
 
 function computeTimeline(events) {
@@ -212,6 +307,8 @@ function computeTimeline(events) {
       zoom: 1,
       displaySpan: 0,
       collapseGaps: state.timeline.collapseGaps ?? true,
+      collapses: [],
+      userAdjusted: false,
     };
     return;
   }
@@ -225,14 +322,18 @@ function computeTimeline(events) {
     state.timeline.minTs === minTs &&
     state.timeline.maxTs === maxTs;
   const zoom = shouldKeepZoom ? state.timeline.zoom : 1;
+  const userAdjusted = shouldKeepZoom ? state.timeline.userAdjusted : false;
+  const { collapses, displaySpan } = buildCollapseMap(events, minTs, state.timeline.collapseGaps ?? true);
   state.timeline = {
     minTs,
     maxTs,
     span,
     basePxPerMs,
     zoom,
-    displaySpan: span,
+    displaySpan,
     collapseGaps: state.timeline.collapseGaps ?? true,
+    collapses,
+    userAdjusted,
   };
 }
 
@@ -278,49 +379,86 @@ function renderModuleLegend(modules) {
   });
 }
 
+function renderModuleLoadLegend(modules) {
+  const legend = document.getElementById('moduleLoadLegend');
+  if (!legend) return;
+  legend.innerHTML = '';
+  const limited = modules.slice(0, 40);
+  limited.forEach((m) => {
+    const item = document.createElement('div');
+    item.className = 'flex items-center gap-2 px-2 py-1 rounded border border-dark-border';
+    const swatch = document.createElement('span');
+    swatch.className = 'inline-block w-3 h-3 rounded';
+    swatch.style.background = getColorForModule(m);
+    const label = document.createElement('span');
+    label.textContent = m;
+    item.appendChild(swatch);
+    item.appendChild(label);
+    legend.appendChild(item);
+  });
+  if (modules.length > limited.length) {
+    const more = document.createElement('div');
+    more.className = 'text-xs text-slate-500';
+    more.textContent = `+${modules.length - limited.length} more`;
+    legend.appendChild(more);
+  }
+}
+
 function renderTimeline() {
   const track = document.getElementById('functionTrack');
+  const moduleTrack = document.getElementById('moduleTrack');
   const wrapper = document.getElementById('functionTrackWrapper');
   track.innerHTML = '';
+  if (moduleTrack) {
+    moduleTrack.innerHTML = '';
+  }
   if (!wrapper) return;
-  const events = buildFunctionEvents();
-  if (!events.length) {
+  const functionEvents = buildFunctionEvents();
+  const moduleLoads = buildModuleLoadEvents();
+  const timelineEvents = [...functionEvents, ...moduleLoads];
+  if (!timelineEvents.length) {
     track.innerHTML = '<div class="text-sm text-slate-500">No function calls</div>';
+    if (moduleTrack) {
+      moduleTrack.innerHTML = '<div class="text-xs text-slate-500 px-2 pt-2">No module loads</div>';
+    }
     document.getElementById('timelineSpan').textContent = '-';
     document.getElementById('timelineAxis').innerHTML = '';
+    renderModuleLegend([]);
+    renderModuleLoadLegend([]);
     return;
   }
 
-  computeTimeline(events);
-  const { minTs, basePxPerMs, zoom, collapseGaps } = state.timeline;
-  const GAP_THRESHOLD_MS = 5000; // gaps longer than this will collapse
-  const GAP_COLLAPSED_MS = 200; // collapsed gap size
+  computeTimeline(timelineEvents);
+  const { minTs, basePxPerMs, collapses } = state.timeline;
+  let { zoom } = state.timeline;
 
-  const placed = [];
-  const sorted = [...events].sort((a, b) => a.start - b.start);
-  let collapseOffset = 0;
-  let prevStart = sorted[0]?.start ?? minTs;
-  for (const ev of sorted) {
-    const gap = ev.start - prevStart;
-    if (collapseGaps && gap > GAP_THRESHOLD_MS) {
-      collapseOffset += gap - GAP_COLLAPSED_MS;
-    }
-    placed.push({
-      ...ev,
-      displayStart: (ev.start - minTs) - collapseOffset,
-      displayDuration: ev.duration,
-    });
-    prevStart = ev.start;
+  if (!state.timeline.userAdjusted && functionEvents.length) {
+    const fnMin = Math.min(...functionEvents.map((e) => e.start));
+    const fnMax = Math.max(...functionEvents.map((e) => e.start + e.duration));
+    const fnSpan = Math.max(fnMax - fnMin, 1);
+    const desiredZoom = Math.min(Math.max(state.timeline.displaySpan / fnSpan, 1), 30);
+    state.timeline.zoom = desiredZoom;
   }
+  zoom = state.timeline.zoom;
 
-  const maxEnd = Math.max(...sorted.map((ev) => ev.start + ev.duration));
-  const collapsedSpan = (maxEnd - minTs) - collapseOffset;
-  const displaySpan = Math.max(collapsedSpan, 1);
-  state.timeline.displaySpan = displaySpan;
+  const placed = functionEvents.map((ev) => ({
+    ...ev,
+    displayStart: mapCollapsedTime(ev.start, minTs, collapses),
+    displayDuration: ev.duration,
+  }));
+
+  const displaySpan = state.timeline.displaySpan;
 
   const pxPerMs = basePxPerMs * zoom * (state.timeline.span / displaySpan);
   const trackWidth = Math.max(displaySpan * pxPerMs, 900);
   track.style.width = `${trackWidth}px`;
+  if (moduleTrack) {
+    moduleTrack.style.width = `${trackWidth}px`;
+  }
+
+  if (!functionEvents.length) {
+    track.innerHTML = '<div class="text-sm text-slate-500 px-2 py-2">No function calls</div>';
+  }
 
   // Pack bars into lanes to avoid overlap, ignoring stack expansion
   const laneEnds = [];
@@ -358,17 +496,38 @@ function renderTimeline() {
     }
     bar.appendChild(label);
     bar.addEventListener('click', () => {
-      state.selection = item;
+      state.selection = { ...item, type: 'function' };
       renderSelection();
     });
     track.appendChild(bar);
   });
 
   const maxLane = laneEnds.length;
-  track.style.height = `${maxLane * 26 + 16}px`;
+  const minHeight = functionEvents.length ? 0 : 60;
+  track.style.height = `${Math.max(maxLane * 26 + 16, minHeight)}px`;
   document.getElementById('timelineSpan').textContent = `0 → ${formatMs(displaySpan)}`;
   renderAxis(0, displaySpan, pxPerMs, trackWidth);
   renderModuleLegend(Array.from(new Set(placed.map((e) => e.module))));
+  if (moduleTrack) {
+    if (!moduleLoads.length) {
+      moduleTrack.innerHTML = '<div class="text-xs text-slate-500 px-2 pt-2">No module loads</div>';
+    } else {
+      moduleLoads.forEach((mod) => {
+        const pin = document.createElement('div');
+        pin.className = 'module-pin';
+        pin.style.left = `${mapCollapsedTime(mod.start, minTs, collapses) * pxPerMs}px`;
+        pin.style.width = `${Math.max(mod.duration * pxPerMs, 3)}px`;
+        pin.style.background = getColorForModule(mod.module);
+        pin.title = `${mod.path} • ${formatMs(mod.duration)} @ ${formatMs(mod.start - minTs)}`;
+        pin.addEventListener('click', () => {
+          state.selection = { ...mod, type: 'module' };
+          renderSelection();
+        });
+        moduleTrack.appendChild(pin);
+      });
+    }
+  }
+  renderModuleLoadLegend(Array.from(new Set(moduleLoads.map((m) => m.module))));
   renderSelection();
 
   wrapper.onwheel = (e) => {
@@ -384,12 +543,16 @@ function renderTimeline() {
     const factor = e.deltaY < 0 ? 1.1 : 0.9;
     const newZoom = Math.min(Math.max(state.timeline.zoom * factor, 0.2), 30);
     state.timeline.zoom = newZoom;
+    state.timeline.userAdjusted = true;
     const newPxPerMs =
       state.timeline.basePxPerMs *
       newZoom *
       (state.timeline.span / Math.max(state.timeline.displaySpan, 1));
     const newTrackWidth = Math.max(state.timeline.displaySpan * newPxPerMs, 900);
     track.style.width = `${newTrackWidth}px`;
+    if (moduleTrack) {
+      moduleTrack.style.width = `${newTrackWidth}px`;
+    }
     const newScrollLeft = cursorTime * newPxPerMs - screenX;
     wrapper.scrollLeft = Math.max(newScrollLeft, 0);
     renderTimeline();
@@ -556,15 +719,25 @@ function renderSelection() {
     return;
   }
   const ev = state.selection;
-  const stack = Array.isArray(ev.stack) ? ev.stack : [];
-  document.getElementById('selTitle').textContent = `${ev.name} (${ev.module || 'unknown'})`;
-  document.getElementById('selTiming').textContent = `${formatMs(ev.duration)} @ ${formatMs(
-    ev.start - (state.timeline.minTs || 0),
-  )}`;
-  document.getElementById('selFile').textContent = `${ev.file || ''}:${ev.line || 0}`;
-  document.getElementById('selStack').textContent = stack.length
-    ? stack.join(' → ') + ' → ' + ev.name
-    : ev.name;
+  const base = state.timeline.minTs || 0;
+  if (ev.type === 'module') {
+    document.getElementById('selTitle').textContent = `${ev.module || 'module load'}`;
+    document.getElementById('selTiming').textContent = `${formatMs(ev.duration)} @ ${formatMs(
+      ev.start - base,
+    )}`;
+    document.getElementById('selFile').textContent = ev.path || '';
+    document.getElementById('selStack').textContent = 'Module load';
+  } else {
+    const stack = Array.isArray(ev.stack) ? ev.stack : [];
+    document.getElementById('selTitle').textContent = `${ev.name} (${ev.module || 'unknown'})`;
+    document.getElementById('selTiming').textContent = `${formatMs(ev.duration)} @ ${formatMs(
+      ev.start - base,
+    )}`;
+    document.getElementById('selFile').textContent = `${ev.file || ''}:${ev.line || 0}`;
+    document.getElementById('selStack').textContent = stack.length
+      ? stack.join(' → ') + ' → ' + ev.name
+      : ev.name;
+  }
   box.classList.remove('hidden');
 }
 
