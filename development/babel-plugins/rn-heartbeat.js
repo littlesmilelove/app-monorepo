@@ -180,18 +180,25 @@ function getFunctionName(funcPath) {
 }
 
 module.exports = function rnHeartbeatPlugin({ types: t }) {
+  // Toggle for collecting all packages' function calls.
+  // Default is false to keep overhead and noise low. When you want full coverage,
+  // manually flip this to true.
+  const COLLECT_ALL_PACKAGES = true;
+
   // Focused coverage for runtime performance monitoring
   // Keep scope narrow to reduce overhead and noise
-  const allowList = [
-    `${path.sep}packages${path.sep}kit${path.sep}src${path.sep}views${path.sep}`,
-    `${path.sep}packages${path.sep}kit${path.sep}src${path.sep}hooks${path.sep}`,
-    `${path.sep}packages${path.sep}kit${path.sep}src${path.sep}provider${path.sep}`,
-    `${path.sep}packages${path.sep}kit${path.sep}src${path.sep}states${path.sep}`,
-    `${path.sep}packages${path.sep}kit-bg${path.sep}src${path.sep}services${path.sep}`,
-    `${path.sep}packages${path.sep}kit-bg${path.sep}src${path.sep}providers${path.sep}`,
-    `${path.sep}packages${path.sep}kit-bg${path.sep}src${path.sep}dbs${path.sep}`,
-    `${path.sep}packages${path.sep}shared${path.sep}src${path.sep}request${path.sep}`,
-  ];
+  const allowList = COLLECT_ALL_PACKAGES
+    ? [`${path.sep}packages${path.sep}`]
+    : [
+        `${path.sep}packages${path.sep}kit${path.sep}src${path.sep}views${path.sep}`,
+        `${path.sep}packages${path.sep}kit${path.sep}src${path.sep}hooks${path.sep}`,
+        `${path.sep}packages${path.sep}kit${path.sep}src${path.sep}provider${path.sep}`,
+        `${path.sep}packages${path.sep}kit${path.sep}src${path.sep}states${path.sep}`,
+        `${path.sep}packages${path.sep}kit-bg${path.sep}src${path.sep}services${path.sep}`,
+        `${path.sep}packages${path.sep}kit-bg${path.sep}src${path.sep}providers${path.sep}`,
+        `${path.sep}packages${path.sep}kit-bg${path.sep}src${path.sep}dbs${path.sep}`,
+        `${path.sep}packages${path.sep}shared${path.sep}src${path.sep}request${path.sep}`,
+      ];
 
   // Exclude paths that add noise or cause issues
   const denyList = [

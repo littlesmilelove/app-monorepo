@@ -43,25 +43,23 @@ function safeParse(line) {
 
 function pickModule(file) {
   if (!file) return 'unknown';
-  if (file.includes('packages/kit/src/views/')) return 'kit/views';
-  if (file.includes('packages/kit/src/hooks/')) return 'kit/hooks';
-  if (file.includes('packages/kit/src/provider/')) return 'kit/provider';
-  if (file.includes('packages/kit/src/states/')) return 'kit/states';
-  if (file.includes('packages/kit-bg/src/')) {
-    const parts = file.split('/');
-    const idx = parts.indexOf('kit-bg');
-    if (idx >= 0 && parts[idx + 2]) {
-      return `kit-bg/${parts[idx + 2]}`;
+
+  const normalized = normalizePath(file);
+  const parts = normalized.split('/').filter(Boolean);
+  const packagesIdx = parts.indexOf('packages');
+  if (packagesIdx < 0 || !parts[packagesIdx + 1]) return 'other';
+
+  const pkg = parts[packagesIdx + 1];
+  const srcIdx = parts.indexOf('src', packagesIdx + 2);
+  if (srcIdx >= 0 && parts[srcIdx + 1]) {
+    const scope = parts[srcIdx + 1];
+    if (scope.includes('.')) {
+      return pkg;
     }
-    return 'kit-bg';
+    return `${pkg}/${scope}`;
   }
-  if (file.includes('packages/shared/src/request/')) return 'shared/request';
-  const parts = file.split('/');
-  const idx = parts.indexOf('packages');
-  if (idx >= 0 && parts[idx + 1]) {
-    return parts.slice(idx + 1, idx + 3).join('/');
-  }
-  return 'other';
+
+  return pkg;
 }
 
 function percentile(arr, p) {
