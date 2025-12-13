@@ -4,8 +4,7 @@ import { bootstrapWithPerfMonitoring } from '@onekeyhq/shared/src/performance/bo
 import './jsReady';
 
 // Performance monitoring bootstrap (must be before other imports when enabled)
-function startApp();
-{
+function startApp() {
   // eslint-disable-next-line @typescript-eslint/no-require-imports, global-require
   const { I18nManager } = require('react-native');
   // eslint-disable-next-line @typescript-eslint/no-require-imports, global-require
@@ -44,7 +43,8 @@ function startApp();
 
 // Bootstrap with performance monitoring if enabled
 // For mobile, we use 'ios' or 'android' based on platform, but 'ios' is used as default
-// The actual platform will be detected by the native sidebootstrapWithPerfMonitoring({
+// The actual platform will be detected by the native side
+bootstrapWithPerfMonitoring({
   platform: 'ios',
   onReady: startApp,
 });

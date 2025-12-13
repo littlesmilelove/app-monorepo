@@ -196,7 +196,12 @@ function renderMemory() {
   const points = buildPoints(
     memory,
     (e) => e.timestamp ?? e.absoluteTime ?? e.data?.timestamp ?? 0,
-    (e) => e.data?.heapUsed ?? e.heapUsed ?? e.data,
+    (e) => {
+      // Support multiple memory formats:
+      // - Web/Desktop: heapUsed, heapTotal
+      // - iOS/Android: rss (resident set size)
+      return e.data?.heapUsed ?? e.heapUsed ?? e.data?.rss ?? e.rss ?? e.data;
+    },
   );
   renderSparkline('memorySparkline', points, '#60a5fa', formatBytes);
   document.getElementById('memorySummary').textContent = points.length
