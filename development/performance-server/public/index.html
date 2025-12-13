@@ -119,10 +119,6 @@
             <div class="text-lg font-semibold">Function calls (flame) with memory/FPS context</div>
           </div>
           <div class="flex items-center gap-3 text-xs text-slate-400">
-            <label class="flex items-center gap-1">
-              <input id="collapseGaps" type="checkbox" class="accent-indigo-400" checked />
-              Collapse long gaps
-            </label>
             <div id="timelineSpan">-</div>
           </div>
         </div>
@@ -138,8 +134,18 @@
               <span class="flame-bar example"></span>
               Function calls
             </span>
+            <span class="inline-flex items-center gap-1">
+              <span class="metric-line example metric-line--memory"></span>
+              Memory
+            </span>
+            <span class="inline-flex items-center gap-1">
+              <span class="metric-line example metric-line--fps"></span>
+              FPS
+            </span>
           </div>
           <div id="moduleTrack" class="timeline-track module-track"></div>
+          <div id="memoryTrack" class="timeline-track metric-track"></div>
+          <div id="fpsTrack" class="timeline-track metric-track"></div>
           <div id="functionTrack" class="timeline-track"></div>
         </div>
         <div class="flex flex-col gap-3">

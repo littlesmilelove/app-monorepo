@@ -4,4 +4,11 @@
 .module-pin:hover{opacity:1;outline:1px solid hsla(0,0%,100%,.35)}
 .module-pin.example{position:relative;top:0;height:12px;width:12px;display:inline-block;background:#22d3ee}
 .flame-bar.example{position:relative;top:0;height:12px;width:16px;display:inline-block;border:1px solid hsla(0,0%,100%,.2);background:#60a5fa;border-radius:3px}
-
+.metric-track{min-height:74px;position:relative;background:rgba(255,255,255,.015);border:1px dashed hsla(0,0%,100%,.08);border-radius:6px}
+.metric-track svg{display:block}
+.metric-line.example{position:relative;top:0;height:0;width:16px;display:inline-block;border-top:2px solid rgba(255,255,255,.6)}
+.metric-line--memory{border-top-color:#60a5fa}
+.metric-line--fps{border-top-color:#f97316}
+.metric-cursor{position:absolute;top:0;bottom:0;width:1px;background:hsla(0,0%,100%,.18);pointer-events:none}
+.metric-tooltip{position:absolute;pointer-events:none;background:rgba(15,16,36,.95);border:1px solid hsla(0,0%,100%,.12);border-radius:6px;padding:4px 8px;font-size:11px;color:#e2e8f0;white-space:nowrap;transform:translateX(-50%);box-shadow:0 6px 18px rgba(0,0,0,.35)}
+.metric-tooltip.hidden{display:none}

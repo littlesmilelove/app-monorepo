@@ -10,16 +10,16 @@
  *   // ... rest of the app imports
  */
 
-import { initPerfReporter, closePerfReporter } from './reporter';
-import {
-  startMemoryCollection,
-  stopMemoryCollection,
-} from './collectors/memoryCollector';
 import {
   startFPSCollection,
   stopFPSCollection,
 } from './collectors/fpsCollector';
+import {
+  startMemoryCollection,
+  stopMemoryCollection,
+} from './collectors/memoryCollector';
 import { installFunctionHitLogger } from './heartbeatLogger';
+import { closePerfReporter, initPerfReporter } from './reporter';
 
 import type { PerfEvent } from './reporter/types';
 
@@ -46,8 +46,8 @@ const DEFAULT_TIMEOUT = 3000;
  */
 export function isPerfMonitoringEnabled(): boolean {
   // 1. Check URL parameter (web only)
-  if (typeof window !== 'undefined' && window.location) {
-    const params = new URLSearchParams(window.location.search);
+  if (typeof globalThis !== 'undefined' && globalThis.location) {
+    const params = new URLSearchParams(globalThis.location.search);
     if (
       params.get('perf') === '1' ||
       params.get('perf_monitor') === '1' ||
@@ -106,7 +106,7 @@ export async function initPerformanceMonitoring(
     timeout = DEFAULT_TIMEOUT,
     collectMemory = true,
     collectFPS = true,
-    memoryInterval = 500,
+    memoryInterval = 100,
   } = options;
 
   // eslint-disable-next-line no-console
@@ -151,7 +151,11 @@ export function stopPerformanceMonitoring() {
 
 // Re-export types and utilities
 export type { PerfEvent } from './reporter/types';
-export { initPerfReporter, getPerfReporter, closePerfReporter } from './reporter';
+export {
+  initPerfReporter,
+  getPerfReporter,
+  closePerfReporter,
+} from './reporter';
 export {
   startMemoryCollection,
   stopMemoryCollection,

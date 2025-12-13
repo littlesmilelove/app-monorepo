@@ -11,16 +11,10 @@ const state = {
     span: 0,
     basePxPerMs: 1,
     zoom: 1,
-    displaySpan: 0,
-    collapseGaps: true,
-    collapses: [],
     userAdjusted: false,
   },
   selection: null,
 };
-
-const GAP_THRESHOLD_MS = 5000;
-const GAP_COLLAPSED_MS = 200;
 
 const palette = [
   '#60a5fa',
@@ -102,6 +96,20 @@ function formatMs(ms) {
 function formatBytes(bytes) {
   if (!Number.isFinite(bytes)) return '-';
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function downsampleSorted(points, maxPoints = 800) {
+  if (!points || points.length <= maxPoints) return points || [];
+  const step = Math.ceil(points.length / maxPoints);
+  const sampled = [];
+  for (let i = 0; i < points.length; i += step) {
+    sampled.push(points[i]);
+  }
+  const last = points[points.length - 1];
+  if (sampled[sampled.length - 1] !== last) {
+    sampled.push(last);
+  }
+  return sampled;
 }
 
 function setStatus(text) {
@@ -269,37 +277,158 @@ function buildModuleLoadEvents() {
     .sort((a, b) => a.start - b.start);
 }
 
-function buildCollapseMap(events, minTs, collapseGaps) {
-  if (!events.length) {
-    return { collapses: [], displaySpan: 0 };
-  }
-  const sorted = [...events].sort((a, b) => a.start - b.start);
-  const collapses = [];
-  let offset = 0;
-  let prevStart = sorted[0]?.start ?? minTs;
-  sorted.forEach((ev) => {
-    const gap = ev.start - prevStart;
-    if (collapseGaps && gap > GAP_THRESHOLD_MS) {
-      offset += gap - GAP_COLLAPSED_MS;
-      collapses.push({ at: ev.start, offset });
-    }
-    prevStart = ev.start;
-  });
-  const maxEnd = Math.max(...events.map((ev) => ev.end ?? ev.start));
-  const displaySpan = Math.max(maxEnd - minTs - offset, 1);
-  return { collapses, displaySpan };
+function buildMemorySamples() {
+  const memory = state.sessionData?.events?.memory || [];
+  return memory
+    .map((e) => {
+      const ts = pickTimestamp(e, e.data || e);
+      const value = Number(
+        e.data?.heapUsed ?? e.heapUsed ?? e.data?.rss ?? e.rss ?? e.data,
+      );
+      return { ts, value, raw: e };
+    })
+    .filter((p) => Number.isFinite(p.ts) && p.ts > 0 && Number.isFinite(p.value))
+    .sort((a, b) => a.ts - b.ts);
 }
 
-function mapCollapsedTime(ts, minTs, collapses) {
-  let offset = 0;
-  for (let i = 0; i < collapses.length; i += 1) {
-    if (ts >= collapses[i].at) {
-      offset = collapses[i].offset;
-    } else {
-      break;
-    }
+function buildFpsSamples() {
+  const fps = state.sessionData?.events?.fps || [];
+  return fps
+    .map((e) => {
+      const ts = pickTimestamp(e, e.data || e);
+      const value = Number(e.data?.fps ?? e.fps ?? 0);
+      return { ts, value, raw: e };
+    })
+    .filter((p) => Number.isFinite(p.ts) && p.ts > 0 && Number.isFinite(p.value))
+    .sort((a, b) => a.ts - b.ts);
+}
+
+function buildMetricTimestampEvents() {
+  const make = (samples) =>
+    samples.map((s) => ({
+      type: 'metric',
+      start: s.ts,
+      end: s.ts,
+      duration: 0,
+    }));
+  return [...make(buildMemorySamples()), ...make(buildFpsSamples())];
+}
+
+function renderMetricTrack(trackEl, samples, opts) {
+  if (!trackEl) return;
+  trackEl.innerHTML = '';
+  if (!samples.length) {
+    trackEl.innerHTML = '<div class="text-xs text-slate-500 px-2 pt-2">No data</div>';
+    return;
   }
-  return Math.max(0, ts - minTs - offset);
+
+  const { minTs, pxPerMs, trackWidth } = opts;
+  const height = 72;
+  const pad = 10;
+  trackEl.style.width = `${trackWidth}px`;
+  trackEl.style.height = `${height}px`;
+
+  const points = downsampleSorted(samples, 800);
+  const minY = Math.min(...points.map((p) => p.value));
+  const maxY = Math.max(...points.map((p) => p.value));
+  const spanY = Math.max(maxY - minY, 1);
+
+  const scaled = points
+    .map((p) => {
+      const x = Math.max(0, (p.ts - minTs) * pxPerMs);
+      const y = height - pad - ((p.value - minY) / spanY) * (height - pad * 2);
+      return { x, y, value: p.value, ts: p.ts };
+    })
+    .filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y))
+    .sort((a, b) => a.x - b.x);
+
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('width', String(trackWidth));
+  svg.setAttribute('height', String(height));
+  svg.setAttribute('viewBox', `0 0 ${trackWidth} ${height}`);
+
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  path.setAttribute('fill', 'none');
+  path.setAttribute('stroke', opts.color);
+  path.setAttribute('stroke-width', '2');
+  path.setAttribute('stroke-linejoin', 'round');
+  path.setAttribute('stroke-linecap', 'round');
+  path.setAttribute('opacity', '0.9');
+
+  let d = '';
+  scaled.forEach((p, idx) => {
+    d += `${idx === 0 ? 'M' : 'L'} ${p.x.toFixed(2)} ${p.y.toFixed(2)} `;
+  });
+  path.setAttribute('d', d.trim());
+  svg.appendChild(path);
+
+  const shouldShowDots = scaled.length <= 250;
+  if (shouldShowDots) {
+    scaled.forEach((p) => {
+      const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      dot.setAttribute('cx', p.x.toFixed(2));
+      dot.setAttribute('cy', p.y.toFixed(2));
+      dot.setAttribute('r', '2.5');
+      dot.setAttribute('fill', opts.color);
+      dot.setAttribute('opacity', '0.95');
+
+      svg.appendChild(dot);
+    });
+  }
+
+  trackEl.appendChild(svg);
+
+  const cursor = document.createElement('div');
+  cursor.className = 'metric-cursor';
+  cursor.style.display = 'none';
+  trackEl.appendChild(cursor);
+
+  const tooltip = document.createElement('div');
+  tooltip.className = 'metric-tooltip hidden';
+  trackEl.appendChild(tooltip);
+
+  function findNearestByX(x) {
+    if (!scaled.length) return null;
+    let lo = 0;
+    let hi = scaled.length - 1;
+    while (lo < hi) {
+      const mid = Math.floor((lo + hi) / 2);
+      if (scaled[mid].x < x) {
+        lo = mid + 1;
+      } else {
+        hi = mid;
+      }
+    }
+    let idx = lo;
+    if (
+      idx > 0 &&
+      Math.abs(scaled[idx - 1].x - x) < Math.abs(scaled[idx].x - x)
+    ) {
+      idx -= 1;
+    }
+    return scaled[idx];
+  }
+
+  trackEl.onmousemove = (e) => {
+    const rect = trackEl.getBoundingClientRect();
+    const localX = e.clientX - rect.left;
+    const nearest = findNearestByX(localX);
+    if (!nearest) return;
+
+    cursor.style.display = 'block';
+    cursor.style.left = `${nearest.x}px`;
+
+    tooltip.classList.remove('hidden');
+    tooltip.style.left = `${nearest.x}px`;
+    tooltip.style.top = `${Math.max(4, nearest.y - 28)}px`;
+    tooltip.textContent = `${opts.formatValue(nearest.value)} @ ${formatMs(
+      nearest.ts - minTs,
+    )}`;
+  };
+  trackEl.onmouseleave = () => {
+    cursor.style.display = 'none';
+    tooltip.classList.add('hidden');
+  };
 }
 
 function computeTimeline(events) {
@@ -310,15 +439,12 @@ function computeTimeline(events) {
       span: 0,
       basePxPerMs: 1,
       zoom: 1,
-      displaySpan: 0,
-      collapseGaps: state.timeline.collapseGaps ?? true,
-      collapses: [],
       userAdjusted: false,
     };
     return;
   }
   const minTs = Math.min(...events.map((e) => e.start));
-  const maxTs = Math.max(...events.map((e) => e.start + e.duration));
+  const maxTs = Math.max(...events.map((e) => e.end ?? (e.start + e.duration)));
   const span = Math.max(maxTs - minTs, 1);
   const basePxPerMs = 1200 / span;
   const shouldKeepZoom =
@@ -328,16 +454,12 @@ function computeTimeline(events) {
     state.timeline.maxTs === maxTs;
   const zoom = shouldKeepZoom ? state.timeline.zoom : 1;
   const userAdjusted = shouldKeepZoom ? state.timeline.userAdjusted : false;
-  const { collapses, displaySpan } = buildCollapseMap(events, minTs, state.timeline.collapseGaps ?? true);
   state.timeline = {
     minTs,
     maxTs,
     span,
     basePxPerMs,
     zoom,
-    displaySpan,
-    collapseGaps: state.timeline.collapseGaps ?? true,
-    collapses,
     userAdjusted,
   };
 }
@@ -412,19 +534,34 @@ function renderModuleLoadLegend(modules) {
 function renderTimeline() {
   const track = document.getElementById('functionTrack');
   const moduleTrack = document.getElementById('moduleTrack');
+  const memoryTrack = document.getElementById('memoryTrack');
+  const fpsTrack = document.getElementById('fpsTrack');
   const wrapper = document.getElementById('functionTrackWrapper');
   track.innerHTML = '';
   if (moduleTrack) {
     moduleTrack.innerHTML = '';
   }
+  if (memoryTrack) {
+    memoryTrack.innerHTML = '';
+  }
+  if (fpsTrack) {
+    fpsTrack.innerHTML = '';
+  }
   if (!wrapper) return;
   const functionEvents = buildFunctionEvents();
   const moduleLoads = buildModuleLoadEvents();
-  const timelineEvents = [...functionEvents, ...moduleLoads];
+  const metricEvents = buildMetricTimestampEvents();
+  const timelineEvents = [...functionEvents, ...moduleLoads, ...metricEvents];
   if (!timelineEvents.length) {
     track.innerHTML = '<div class="text-sm text-slate-500">No function calls</div>';
     if (moduleTrack) {
       moduleTrack.innerHTML = '<div class="text-xs text-slate-500 px-2 pt-2">No module loads</div>';
+    }
+    if (memoryTrack) {
+      memoryTrack.innerHTML = '<div class="text-xs text-slate-500 px-2 pt-2">No memory data</div>';
+    }
+    if (fpsTrack) {
+      fpsTrack.innerHTML = '<div class="text-xs text-slate-500 px-2 pt-2">No FPS data</div>';
     }
     document.getElementById('timelineSpan').textContent = '-';
     document.getElementById('timelineAxis').innerHTML = '';
@@ -434,31 +571,37 @@ function renderTimeline() {
   }
 
   computeTimeline(timelineEvents);
-  const { minTs, basePxPerMs, collapses } = state.timeline;
+  const { minTs, basePxPerMs } = state.timeline;
   let { zoom } = state.timeline;
 
   if (!state.timeline.userAdjusted && functionEvents.length) {
     const fnMin = Math.min(...functionEvents.map((e) => e.start));
     const fnMax = Math.max(...functionEvents.map((e) => e.start + e.duration));
     const fnSpan = Math.max(fnMax - fnMin, 1);
-    const desiredZoom = Math.min(Math.max(state.timeline.displaySpan / fnSpan, 1), 30);
+    const desiredZoom = Math.min(Math.max(state.timeline.span / fnSpan, 1), 30);
     state.timeline.zoom = desiredZoom;
   }
   zoom = state.timeline.zoom;
 
   const placed = functionEvents.map((ev) => ({
     ...ev,
-    displayStart: mapCollapsedTime(ev.start, minTs, collapses),
-    displayDuration: ev.duration,
+    displayStart: Math.max(0, ev.start - minTs),
+    displayDuration: Math.max(ev.end - ev.start, 0),
   }));
 
-  const displaySpan = state.timeline.displaySpan;
+  const displaySpan = state.timeline.span;
 
-  const pxPerMs = basePxPerMs * zoom * (state.timeline.span / displaySpan);
+  const pxPerMs = basePxPerMs * zoom;
   const trackWidth = Math.max(displaySpan * pxPerMs, 900);
   track.style.width = `${trackWidth}px`;
   if (moduleTrack) {
     moduleTrack.style.width = `${trackWidth}px`;
+  }
+  if (memoryTrack) {
+    memoryTrack.style.width = `${trackWidth}px`;
+  }
+  if (fpsTrack) {
+    fpsTrack.style.width = `${trackWidth}px`;
   }
 
   if (!functionEvents.length) {
@@ -520,8 +663,10 @@ function renderTimeline() {
       moduleLoads.forEach((mod) => {
         const pin = document.createElement('div');
         pin.className = 'module-pin';
-        pin.style.left = `${mapCollapsedTime(mod.start, minTs, collapses) * pxPerMs}px`;
-        pin.style.width = `${Math.max(mod.duration * pxPerMs, 3)}px`;
+        const displayStart = Math.max(0, mod.start - minTs);
+        const displayEnd = Math.max(0, (mod.end ?? (mod.start + mod.duration)) - minTs);
+        pin.style.left = `${displayStart * pxPerMs}px`;
+        pin.style.width = `${Math.max((displayEnd - displayStart) * pxPerMs, 3)}px`;
         pin.style.background = getColorForModule(mod.module);
         pin.title = `${mod.path} • ${formatMs(mod.duration)} @ ${formatMs(mod.start - minTs)}`;
         pin.addEventListener('click', () => {
@@ -533,6 +678,22 @@ function renderTimeline() {
     }
   }
   renderModuleLoadLegend(Array.from(new Set(moduleLoads.map((m) => m.module))));
+
+  renderMetricTrack(memoryTrack, buildMemorySamples(), {
+    minTs,
+    pxPerMs,
+    trackWidth,
+    color: '#60a5fa',
+    formatValue: formatBytes,
+  });
+  renderMetricTrack(fpsTrack, buildFpsSamples(), {
+    minTs,
+    pxPerMs,
+    trackWidth,
+    color: '#f97316',
+    formatValue: (v) => `${Math.round(v)} fps`,
+  });
+
   renderSelection();
 
   wrapper.onwheel = (e) => {
@@ -541,22 +702,23 @@ function renderTimeline() {
     const rect = wrapper.getBoundingClientRect();
     const screenX = e.clientX - rect.left;
     const currentPxPerMs =
-      state.timeline.basePxPerMs *
-      state.timeline.zoom *
-      (state.timeline.span / Math.max(state.timeline.displaySpan, 1));
+      state.timeline.basePxPerMs * state.timeline.zoom;
     const cursorTime = (screenX + wrapper.scrollLeft) / currentPxPerMs;
     const factor = e.deltaY < 0 ? 1.1 : 0.9;
     const newZoom = Math.min(Math.max(state.timeline.zoom * factor, 0.2), 30);
     state.timeline.zoom = newZoom;
     state.timeline.userAdjusted = true;
-    const newPxPerMs =
-      state.timeline.basePxPerMs *
-      newZoom *
-      (state.timeline.span / Math.max(state.timeline.displaySpan, 1));
-    const newTrackWidth = Math.max(state.timeline.displaySpan * newPxPerMs, 900);
+    const newPxPerMs = state.timeline.basePxPerMs * newZoom;
+    const newTrackWidth = Math.max(state.timeline.span * newPxPerMs, 900);
     track.style.width = `${newTrackWidth}px`;
     if (moduleTrack) {
       moduleTrack.style.width = `${newTrackWidth}px`;
+    }
+    if (memoryTrack) {
+      memoryTrack.style.width = `${newTrackWidth}px`;
+    }
+    if (fpsTrack) {
+      fpsTrack.style.width = `${newTrackWidth}px`;
     }
     const newScrollLeft = cursorTime * newPxPerMs - screenX;
     wrapper.scrollLeft = Math.max(newScrollLeft, 0);
@@ -710,10 +872,6 @@ function wireEvents() {
   document.getElementById('exportRaw').addEventListener('click', downloadRaw);
   document.getElementById('applyFilter').addEventListener('click', () => {
     renderSlowFunctions();
-  });
-  document.getElementById('collapseGaps').addEventListener('change', (e) => {
-    state.timeline.collapseGaps = e.target.checked;
-    renderTimeline();
   });
 }
 

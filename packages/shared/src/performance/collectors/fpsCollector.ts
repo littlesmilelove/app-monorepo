@@ -12,10 +12,13 @@ let isRunning = false;
 let lastTime = 0;
 let frameCount = 0;
 let lastReportTime = 0;
-const REPORT_INTERVAL_MS = 1000; // Report every second
+const REPORT_INTERVAL_MS = 100; // Report every 100ms
 
 function getNow() {
-  if (typeof performance !== 'undefined' && typeof performance.now === 'function') {
+  if (
+    typeof performance !== 'undefined' &&
+    typeof performance.now === 'function'
+  ) {
     return performance.now();
   }
   return Date.now();
