@@ -17,10 +17,7 @@ function getMemoryUsage(): {
   rss?: number;
 } | null {
   // Web: performance.memory (Chrome only)
-  if (
-    typeof performance !== 'undefined' &&
-    (performance as any).memory
-  ) {
+  if (typeof performance !== 'undefined' && (performance as any).memory) {
     const mem = (performance as any).memory;
     return {
       heapUsed: mem.usedJSHeapSize,
@@ -52,7 +49,7 @@ function getMemoryUsage(): {
  *
  * @param intervalMs Collection interval in milliseconds (default: 500)
  */
-export function startMemoryCollection(intervalMs = 500) {
+export function startMemoryCollection(intervalMs = 100) {
   if (intervalId) {
     return; // Already running
   }
