@@ -14,6 +14,13 @@ let frameCount = 0;
 let lastReportTime = 0;
 const REPORT_INTERVAL_MS = 1000; // Report every second
 
+function getNow() {
+  if (typeof performance !== 'undefined' && typeof performance.now === 'function') {
+    return performance.now();
+  }
+  return Date.now();
+}
+
 /**
  * Start FPS collection
  */
@@ -29,14 +36,14 @@ export function startFPSCollection() {
   }
 
   isRunning = true;
-  lastTime = performance.now();
+  lastTime = getNow();
   lastReportTime = lastTime;
   frameCount = 0;
 
   function tick() {
     if (!isRunning) return;
 
-    const now = performance.now();
+    const now = getNow();
     frameCount++;
 
     // Report FPS every REPORT_INTERVAL_MS
@@ -85,12 +92,12 @@ export function measureFPS(): Promise<number> {
     }
 
     let frames = 0;
-    const startTime = performance.now();
+    const startTime = getNow();
     let rafId: number;
 
     function count() {
       frames++;
-      const elapsed = performance.now() - startTime;
+      const elapsed = getNow() - startTime;
 
       if (elapsed < 1000) {
         rafId = requestAnimationFrame(count);
