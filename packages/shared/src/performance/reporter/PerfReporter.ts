@@ -201,8 +201,9 @@ class PerfReporter implements PerfReporterInstance {
     // Mark reporter as ready
     g.__perfReporterReady = true;
 
-    // Flush any buffered module load data from before reporter was ready
+    // Flush any buffered data from before reporter was ready
     this.flushBufferedModuleLoads();
+    this.flushBufferedFunctionCalls();
   }
 
   private flushBufferedModuleLoads() {
@@ -222,6 +223,32 @@ class PerfReporter implements PerfReporterInstance {
 
       // Clear the buffer
       g.__perfModuleBuffer = [];
+    }
+  }
+
+  private flushBufferedFunctionCalls() {
+    const g = globalThis as any;
+    const buffer = g.__perfFunctionBuffer;
+
+    if (Array.isArray(buffer) && buffer.length > 0) {
+      // eslint-disable-next-line no-console
+      console.log(
+        `[PerfReporter] Flushing ${buffer.length} buffered function calls`,
+      );
+
+      for (const item of buffer) {
+        this.send('function_call', {
+          name: item.name,
+          file: item.file,
+          line: item.line,
+          duration: item.duration,
+          module: item.module,
+          stack: item.stack,
+        });
+      }
+
+      // Clear the buffer
+      g.__perfFunctionBuffer = [];
     }
   }
 
