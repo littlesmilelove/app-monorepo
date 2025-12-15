@@ -279,6 +279,27 @@ function buildModuleLoadEvents() {
     .sort((a, b) => a.start - b.start);
 }
 
+function buildMarkEvents() {
+  const marks = state.sessionData?.events?.mark || [];
+  return marks
+    .map((e) => {
+      const payload = e.data || e;
+      const ts = pickTimestamp(e, payload);
+      const name = payload?.name || payload?.label || 'mark';
+      return {
+        type: 'mark',
+        name,
+        detail: payload?.detail,
+        start: ts,
+        end: ts,
+        duration: 0,
+        raw: e,
+      };
+    })
+    .filter((e) => Number.isFinite(e.start) && e.start >= 0)
+    .sort((a, b) => a.start - b.start);
+}
+
 function buildMemorySamples() {
   const memory = state.sessionData?.events?.memory || [];
   return memory
@@ -565,12 +586,16 @@ function renderModuleLoadLegend(modules) {
 function renderTimeline() {
   const track = document.getElementById('functionTrack');
   const moduleTrack = document.getElementById('moduleTrack');
+  const markTrack = document.getElementById('markTrack');
   const memoryTrack = document.getElementById('memoryTrack');
   const fpsTrack = document.getElementById('fpsTrack');
   const wrapper = document.getElementById('functionTrackWrapper');
   track.innerHTML = '';
   if (moduleTrack) {
     moduleTrack.innerHTML = '';
+  }
+  if (markTrack) {
+    markTrack.innerHTML = '';
   }
   if (memoryTrack) {
     memoryTrack.innerHTML = '';
@@ -591,12 +616,21 @@ function renderTimeline() {
     state.selection = null;
   }
   const moduleLoads = buildModuleLoadEvents();
+  const markEvents = buildMarkEvents();
   const metricEvents = buildMetricTimestampEvents();
-  const timelineEvents = [...functionEvents, ...moduleLoads, ...metricEvents];
+  const timelineEvents = [
+    ...functionEvents,
+    ...moduleLoads,
+    ...markEvents,
+    ...metricEvents,
+  ];
   if (!timelineEvents.length) {
     track.innerHTML = '<div class="text-sm text-slate-500">No function calls</div>';
     if (moduleTrack) {
       moduleTrack.innerHTML = '<div class="text-xs text-slate-500 px-2 pt-2">No module loads</div>';
+    }
+    if (markTrack) {
+      markTrack.innerHTML = '<div class="text-xs text-slate-500 px-2 pt-2">No marks</div>';
     }
     if (memoryTrack) {
       memoryTrack.innerHTML = '<div class="text-xs text-slate-500 px-2 pt-2">No memory data</div>';
@@ -637,6 +671,9 @@ function renderTimeline() {
   track.style.width = `${trackWidth}px`;
   if (moduleTrack) {
     moduleTrack.style.width = `${trackWidth}px`;
+  }
+  if (markTrack) {
+    markTrack.style.width = `${trackWidth}px`;
   }
   if (memoryTrack) {
     memoryTrack.style.width = `${trackWidth}px`;
@@ -720,6 +757,32 @@ function renderTimeline() {
   }
   renderModuleLoadLegend(Array.from(new Set(moduleLoads.map((m) => m.module))));
 
+  if (markTrack) {
+    if (!markEvents.length) {
+      markTrack.innerHTML = '<div class="text-xs text-slate-500 px-2 pt-2">No marks</div>';
+    } else {
+      const shouldShowLabels = markEvents.length <= 24;
+      markEvents.forEach((m) => {
+        const pin = document.createElement('div');
+        pin.className = 'mark-pin';
+        const displayStart = Math.max(0, m.start - minTs);
+        pin.style.left = `${displayStart * pxPerMs}px`;
+        pin.title = `${m.name} @ ${formatMs(m.start - minTs)}`;
+        pin.addEventListener('click', () => {
+          state.selection = { ...m, type: 'mark' };
+          renderSelection();
+        });
+        if (shouldShowLabels) {
+          const label = document.createElement('div');
+          label.className = 'mark-label';
+          label.textContent = m.name;
+          pin.appendChild(label);
+        }
+        markTrack.appendChild(pin);
+      });
+    }
+  }
+
   renderMetricTrack(memoryTrack, buildMemorySamples(), {
     minTs,
     pxPerMs,
@@ -754,6 +817,9 @@ function renderTimeline() {
     track.style.width = `${newTrackWidth}px`;
     if (moduleTrack) {
       moduleTrack.style.width = `${newTrackWidth}px`;
+    }
+    if (markTrack) {
+      markTrack.style.width = `${newTrackWidth}px`;
     }
     if (memoryTrack) {
       memoryTrack.style.width = `${newTrackWidth}px`;
@@ -941,7 +1007,24 @@ function renderSelection() {
   }
   const ev = state.selection;
   const base = state.timeline.minTs || 0;
-  if (ev.type === 'module') {
+
+  const formatDetail = (detail) => {
+    if (detail === undefined) return '';
+    try {
+      const text =
+        typeof detail === 'string' ? detail : JSON.stringify(detail, null, 2);
+      return text.length > 1200 ? `${text.slice(0, 1200)}…` : text;
+    } catch {
+      return String(detail);
+    }
+  };
+
+  if (ev.type === 'mark') {
+    document.getElementById('selTitle').textContent = `${ev.name || 'mark'}`;
+    document.getElementById('selTiming').textContent = `@ ${formatMs(ev.start - base)}`;
+    document.getElementById('selFile').textContent = 'Mark';
+    document.getElementById('selStack').textContent = formatDetail(ev.detail);
+  } else if (ev.type === 'module') {
     document.getElementById('selTitle').textContent = `${ev.module || 'module load'}`;
     document.getElementById('selTiming').textContent = `${formatMs(ev.duration)} @ ${formatMs(
       ev.start - base,

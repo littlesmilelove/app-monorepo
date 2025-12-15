@@ -7,8 +7,20 @@ export interface PerfEvent {
   timestamp: number; // Relative to session start (ms)
   absoluteTime: number; // Date.now()
   platform: 'web' | 'desktop' | 'ext' | 'ios' | 'android';
-  type: 'module_load' | 'function_call' | 'memory' | 'fps' | 'long_task';
-  data: ModuleLoadData | FunctionCallData | MemoryData | FPSData | LongTaskData;
+  type:
+    | 'module_load'
+    | 'function_call'
+    | 'memory'
+    | 'fps'
+    | 'long_task'
+    | 'mark';
+  data:
+    | ModuleLoadData
+    | FunctionCallData
+    | MemoryData
+    | FPSData
+    | LongTaskData
+    | MarkData;
 }
 
 export interface ModuleLoadData {
@@ -40,6 +52,11 @@ export interface FPSData {
 export interface LongTaskData {
   duration: number;
   attribution?: string;
+}
+
+export interface MarkData {
+  name: string;
+  detail?: any;
 }
 
 export interface PerfReporterOptions {

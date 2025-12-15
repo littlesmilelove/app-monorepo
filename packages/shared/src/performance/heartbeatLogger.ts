@@ -303,13 +303,6 @@ export function installFunctionHitLogger() {
         reportedCount++;
       }
     }
-    // Log stats every 100 calls
-    if (callCount % 100 === 0) {
-      // eslint-disable-next-line no-console
-      console.log(
-        `[HEARTBEAT] Function stats: ${callCount} calls, ${reportedCount} reported (threshold: ${perfThresholdMs}ms)`,
-      );
-    }
     return result;
   };
 

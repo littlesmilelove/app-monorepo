@@ -128,6 +128,7 @@ function getSessionData(sessionId) {
       function_call: [],
       memory: [],
       fps: [],
+      mark: [],
     },
   };
 

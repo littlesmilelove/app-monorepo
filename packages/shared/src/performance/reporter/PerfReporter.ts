@@ -198,11 +198,17 @@ class PerfReporter implements PerfReporterInstance {
       this.send('long_task', data);
     };
 
+    // Mark reporting
+    g.__perfReportMark = (data: { name: string; detail?: any }) => {
+      this.send('mark', data);
+    };
+
     // Mark reporter as ready
     g.__perfReporterReady = true;
 
     // Flush any buffered module load data from before reporter was ready
     this.flushBufferedModuleLoads();
+    this.flushBufferedMarks();
   }
 
   private flushBufferedModuleLoads() {
@@ -225,6 +231,34 @@ class PerfReporter implements PerfReporterInstance {
     }
   }
 
+  private flushBufferedMarks() {
+    const g = globalThis as any;
+    const buffer = g.__perfMarkBuffer;
+
+    if (Array.isArray(buffer) && buffer.length > 0) {
+      for (const item of buffer) {
+        if (!item || !item.name) continue;
+
+        const absoluteTime = Number(item.absoluteTime);
+        const rawTs = Number(item.timestamp);
+        const timestamp = Number.isFinite(rawTs)
+          ? rawTs - this.sessionStartTime
+          : 0;
+
+        this.sendRaw({
+          sessionId: this.sessionId,
+          timestamp: Number.isFinite(timestamp) ? Math.max(0, timestamp) : 0,
+          absoluteTime: Number.isFinite(absoluteTime) ? absoluteTime : Date.now(),
+          platform: this.platform,
+          type: 'mark',
+          data: { name: item.name, detail: item.detail },
+        });
+      }
+
+      g.__perfMarkBuffer = [];
+    }
+  }
+
   private removeGlobalHooks() {
     const g = globalThis as any;
     delete g.__perfReportModuleLoad;
@@ -232,6 +266,7 @@ class PerfReporter implements PerfReporterInstance {
     delete g.__perfReportMemory;
     delete g.__perfReportFPS;
     delete g.__perfReportLongTask;
+    delete g.__perfReportMark;
     delete g.__perfReporterReady;
   }
 }

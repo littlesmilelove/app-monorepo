@@ -11,12 +11,16 @@ import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.WritableMap;
 
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
+
 /**
  * PerfMemoryModule
  *
  * Exposes process memory usage to JS for performance monitoring.
- * Android uses PSS as a better approximation of real memory usage than RSS.
- * We map it to "rss" field (bytes) to keep the shared event schema stable.
+ * Prefer VmRSS from /proc for the "rss" field (bytes). When unavailable, fallback
+ * to totalPss (KB -> bytes) as an approximation.
  */
 public class PerfMemoryModule extends ReactContextBaseJavaModule {
 
@@ -29,20 +33,55 @@ public class PerfMemoryModule extends ReactContextBaseJavaModule {
         return "PerfMemoryModule";
     }
 
+    private static Long readVmRssBytesFromProcStatus() {
+        try (BufferedReader reader = new BufferedReader(new FileReader("/proc/self/status"))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (!line.startsWith("VmRSS:")) {
+                    continue;
+                }
+                // Example: "VmRSS:\t  123456 kB"
+                String[] parts = line.trim().split("\\s+");
+                if (parts.length < 2) {
+                    return null;
+                }
+                long kb = Long.parseLong(parts[1]);
+                return kb * 1024L;
+            }
+        } catch (IOException | NumberFormatException ignored) {
+            // ignore
+        }
+        return null;
+    }
+
     @ReactMethod
     public void getMemoryUsage(Promise promise) {
         try {
+            Long rssBytes = readVmRssBytesFromProcStatus();
+
             ActivityManager am = (ActivityManager) getReactApplicationContext()
                     .getSystemService(Context.ACTIVITY_SERVICE);
             if (am == null) {
-                promise.resolve(null);
+                if (rssBytes != null) {
+                    WritableMap map = Arguments.createMap();
+                    map.putDouble("rss", (double) rssBytes);
+                    promise.resolve(map);
+                } else {
+                    promise.resolve(null);
+                }
                 return;
             }
 
             int pid = android.os.Process.myPid();
             Debug.MemoryInfo[] memInfos = am.getProcessMemoryInfo(new int[]{pid});
             if (memInfos == null || memInfos.length == 0) {
-                promise.resolve(null);
+                if (rssBytes != null) {
+                    WritableMap map = Arguments.createMap();
+                    map.putDouble("rss", (double) rssBytes);
+                    promise.resolve(map);
+                } else {
+                    promise.resolve(null);
+                }
                 return;
             }
 
@@ -50,11 +89,10 @@ public class PerfMemoryModule extends ReactContextBaseJavaModule {
             long pssBytes = ((long) memInfos[0].getTotalPss()) * 1024L;
 
             WritableMap map = Arguments.createMap();
-            map.putDouble("rss", (double) pssBytes);
+            map.putDouble("rss", (double) (rssBytes != null ? rssBytes : pssBytes));
             promise.resolve(map);
         } catch (Exception e) {
             promise.reject("PERF_MEMORY_ERROR", e);
         }
     }
 }
-
