@@ -18,7 +18,8 @@ import {
 // Thresholds (support both legacy web env vars and RN profiler env vars)
 const perfThresholdMs = Number.parseInt(
   (typeof process !== 'undefined' && process.env?.RN_PROFILER_THRESHOLD_MS) ||
-    (typeof process !== 'undefined' && process.env?.PERF_FUNCTION_THRESHOLD_MS) ||
+    (typeof process !== 'undefined' &&
+      process.env?.PERF_FUNCTION_THRESHOLD_MS) ||
     `${FUNCTION_THRESHOLD_DEFAULT_MS}`,
   10,
 );
@@ -248,13 +249,6 @@ export function recordFunctionPerfEnd(token?: {
       absoluteTime,
       timestamp: endTimestamp,
     });
-  }
-
-  if (duration >= config.warn) {
-    // eslint-disable-next-line no-console
-    console.warn(
-      `[FUNC-PERF] ${duration.toFixed(2)}ms ${token.meta.name} ${token.meta.file}:${token.meta.line || 0}`,
-    );
   }
 }
 

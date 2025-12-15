@@ -14,6 +14,8 @@ const state = {
     userAdjusted: false,
   },
   selection: null,
+  timelineAvailableModules: [],
+  timelineSelectedModules: null,
 };
 
 const palette = [
@@ -492,14 +494,43 @@ function renderAxis(minTs, maxTs, pxPerMs, trackWidth) {
 function renderModuleLegend(modules) {
   const legend = document.getElementById('moduleLegend');
   legend.innerHTML = '';
+  const countEl = document.getElementById('moduleSelectedCount');
+  if (!state.timelineSelectedModules) {
+    state.timelineSelectedModules = new Set(modules);
+  }
+  const selected = state.timelineSelectedModules;
+  if (countEl) {
+    countEl.textContent = `${selected.size}/${modules.length}`;
+  }
   modules.forEach((m) => {
-    const item = document.createElement('div');
-    item.className = 'flex items-center gap-2 px-2 py-1 rounded border border-dark-border';
+    const item = document.createElement('label');
+    item.className =
+      'flex items-center gap-2 px-2 py-1 rounded border border-dark-border hover:bg-dark-hover cursor-pointer select-none';
+
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.checked = selected.has(m);
+    checkbox.className = 'accent-indigo-500';
+    checkbox.addEventListener('change', () => {
+      if (checkbox.checked) {
+        selected.add(m);
+      } else {
+        selected.delete(m);
+      }
+      renderTimeline();
+    });
+
     const swatch = document.createElement('span');
     swatch.className = 'inline-block w-3 h-3 rounded';
     swatch.style.background = getColorForModule(m);
+
     const label = document.createElement('span');
     label.textContent = m;
+    if (!selected.has(m)) {
+      label.className = 'text-slate-500';
+    }
+
+    item.appendChild(checkbox);
     item.appendChild(swatch);
     item.appendChild(label);
     legend.appendChild(item);
@@ -548,7 +579,17 @@ function renderTimeline() {
     fpsTrack.innerHTML = '';
   }
   if (!wrapper) return;
-  const functionEvents = buildFunctionEvents();
+  const allFunctionEvents = buildFunctionEvents();
+  const allModules = Array.from(new Set(allFunctionEvents.map((e) => e.module))).sort();
+  state.timelineAvailableModules = allModules;
+  if (!state.timelineSelectedModules) {
+    state.timelineSelectedModules = new Set(allModules);
+  }
+  const selectedModules = state.timelineSelectedModules;
+  const functionEvents = allFunctionEvents.filter((e) => selectedModules.has(e.module));
+  if (state.selection?.type === 'function' && !selectedModules.has(state.selection.module)) {
+    state.selection = null;
+  }
   const moduleLoads = buildModuleLoadEvents();
   const metricEvents = buildMetricTimestampEvents();
   const timelineEvents = [...functionEvents, ...moduleLoads, ...metricEvents];
@@ -565,7 +606,7 @@ function renderTimeline() {
     }
     document.getElementById('timelineSpan').textContent = '-';
     document.getElementById('timelineAxis').innerHTML = '';
-    renderModuleLegend([]);
+    renderModuleLegend(allModules);
     renderModuleLoadLegend([]);
     return;
   }
@@ -655,7 +696,7 @@ function renderTimeline() {
   track.style.height = `${Math.max(maxLane * 26 + 16, minHeight)}px`;
   document.getElementById('timelineSpan').textContent = `0 → ${formatMs(displaySpan)}`;
   renderAxis(0, displaySpan, pxPerMs, trackWidth);
-  renderModuleLegend(Array.from(new Set(placed.map((e) => e.module))));
+  renderModuleLegend(allModules);
   if (moduleTrack) {
     if (!moduleLoads.length) {
       moduleTrack.innerHTML = '<div class="text-xs text-slate-500 px-2 pt-2">No module loads</div>';
@@ -809,6 +850,8 @@ async function loadSession(sessionId) {
     state.currentSessionId = sessionId;
     state.sessionData = sessionData;
     state.analysis = analysis;
+    state.timelineAvailableModules = [];
+    state.timelineSelectedModules = null;
     renderMeta();
     renderMemory();
     renderFps();
@@ -873,6 +916,21 @@ function wireEvents() {
   document.getElementById('applyFilter').addEventListener('click', () => {
     renderSlowFunctions();
   });
+  const selectAll = document.getElementById('moduleSelectAll');
+  const selectNone = document.getElementById('moduleSelectNone');
+  if (selectAll) {
+    selectAll.addEventListener('click', () => {
+      state.timelineSelectedModules = new Set(state.timelineAvailableModules || []);
+      renderTimeline();
+    });
+  }
+  if (selectNone) {
+    selectNone.addEventListener('click', () => {
+      state.timelineSelectedModules = new Set();
+      state.selection = null;
+      renderTimeline();
+    });
+  }
 }
 
 function renderSelection() {
