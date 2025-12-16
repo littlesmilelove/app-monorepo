@@ -1,4 +1,6 @@
 /* eslint-disable import/order */
+import { Platform } from 'react-native';
+
 import { bootstrapWithPerfMonitoring } from '@onekeyhq/shared/src/performance/bootstrap';
 
 import './jsReady';
@@ -42,9 +44,7 @@ function startApp() {
 }
 
 // Bootstrap with performance monitoring if enabled
-// For mobile, we use 'ios' or 'android' based on platform, but 'ios' is used as default
-// The actual platform will be detected by the native side
 bootstrapWithPerfMonitoring({
-  platform: 'ios',
+  platform: Platform.OS === 'android' ? 'android' : 'ios',
   onReady: startApp,
 });

@@ -249,6 +249,25 @@ export function recordFunctionPerfEnd(token?: {
       absoluteTime,
       timestamp: endTimestamp,
     });
+  } else {
+    // Buffer function calls if reporter not ready yet (for non-blocking mobile bootstrap)
+    g.__perfFunctionBuffer = g.__perfFunctionBuffer || [];
+    // Limit buffer size to prevent memory issues
+    if (g.__perfFunctionBuffer.length < 1000) {
+      g.__perfFunctionBuffer.push({
+        name: token.meta.name,
+        file: normalizedFile,
+        line: token.meta.line,
+        duration,
+        module,
+        stack,
+        absoluteTime: Date.now(),
+        timestamp:
+          typeof performance !== 'undefined' && performance.now
+            ? performance.now()
+            : Date.now(),
+      });
+    }
   }
 }
 

@@ -6,8 +6,8 @@
 
 import type {
   PerfEvent,
-  PerfReporterOptions,
   PerfReporterInstance,
+  PerfReporterOptions,
 } from './types';
 
 class PerfReporter implements PerfReporterInstance {
@@ -53,9 +53,7 @@ class PerfReporter implements PerfReporterInstance {
 
       const timer = setTimeout(() => {
         // eslint-disable-next-line no-console
-        console.warn(
-          '[PerfReporter] Connection timeout, profiling disabled',
-        );
+        console.warn('[PerfReporter] Connection timeout, profiling disabled');
         this.cleanup();
         resolve(false);
       }, timeout);
@@ -67,9 +65,7 @@ class PerfReporter implements PerfReporterInstance {
           clearTimeout(timer);
           this.connected = true;
           // eslint-disable-next-line no-console
-          console.log(
-            `[PerfReporter] Connected, sessionId: ${this.sessionId}`,
-          );
+          console.log(`[PerfReporter] Connected, sessionId: ${this.sessionId}`);
 
           // Send initial session info
           this.sendRaw({
@@ -88,9 +84,7 @@ class PerfReporter implements PerfReporterInstance {
         this.ws.onerror = () => {
           clearTimeout(timer);
           // eslint-disable-next-line no-console
-          console.warn(
-            '[PerfReporter] Connection failed, profiling disabled',
-          );
+          console.warn('[PerfReporter] Connection failed, profiling disabled');
           this.cleanup();
           resolve(false);
         };
@@ -206,8 +200,9 @@ class PerfReporter implements PerfReporterInstance {
     // Mark reporter as ready
     g.__perfReporterReady = true;
 
-    // Flush any buffered module load data from before reporter was ready
+    // Flush any buffered data from before reporter was ready
     this.flushBufferedModuleLoads();
+    this.flushBufferedFunctionCalls();
     this.flushBufferedMarks();
   }
 
@@ -217,7 +212,9 @@ class PerfReporter implements PerfReporterInstance {
 
     if (Array.isArray(buffer) && buffer.length > 0) {
       // eslint-disable-next-line no-console
-      console.log(`[PerfReporter] Flushing ${buffer.length} buffered module loads`);
+      console.log(
+        `[PerfReporter] Flushing ${buffer.length} buffered module loads`,
+      );
 
       for (const item of buffer) {
         this.send('module_load', {
@@ -228,6 +225,32 @@ class PerfReporter implements PerfReporterInstance {
 
       // Clear the buffer
       g.__perfModuleBuffer = [];
+    }
+  }
+
+  private flushBufferedFunctionCalls() {
+    const g = globalThis as any;
+    const buffer = g.__perfFunctionBuffer;
+
+    if (Array.isArray(buffer) && buffer.length > 0) {
+      // eslint-disable-next-line no-console
+      console.log(
+        `[PerfReporter] Flushing ${buffer.length} buffered function calls`,
+      );
+
+      for (const item of buffer) {
+        this.send('function_call', {
+          name: item.name,
+          file: item.file,
+          line: item.line,
+          duration: item.duration,
+          module: item.module,
+          stack: item.stack,
+        });
+      }
+
+      // Clear the buffer
+      g.__perfFunctionBuffer = [];
     }
   }
 
@@ -248,7 +271,9 @@ class PerfReporter implements PerfReporterInstance {
         this.sendRaw({
           sessionId: this.sessionId,
           timestamp: Number.isFinite(timestamp) ? Math.max(0, timestamp) : 0,
-          absoluteTime: Number.isFinite(absoluteTime) ? absoluteTime : Date.now(),
+          absoluteTime: Number.isFinite(absoluteTime)
+            ? absoluteTime
+            : Date.now(),
           platform: this.platform,
           type: 'mark',
           data: { name: item.name, detail: item.detail },
