@@ -310,6 +310,26 @@ function buildRepeatedCalls(entries, { windowMs = 100 } = {}) {
   );
 }
 
+function buildRepeatedCallsOverall(slowFunctions) {
+  const list = (slowFunctions || [])
+    .filter((f) => Number.isFinite(f.count) && f.count > 0)
+    .map((f) => ({
+      key: f.key,
+      name: f.name,
+      file: f.file,
+      line: f.line || 0,
+      module: f.module || 'unknown',
+      calls: f.count,
+      totalDuration: f.total || 0,
+      maxDuration: f.max || 0,
+      avgDuration: f.avg || 0,
+      p95Duration: f.p95 || 0,
+    }))
+    .sort((a, b) => b.calls - a.calls || b.totalDuration - a.totalDuration || b.maxDuration - a.maxDuration);
+
+  return list;
+}
+
 function getSessionCacheKey(sessionId) {
   const sessionDir = path.join(storage.OUTPUT_DIR, sessionId);
   const logPath = path.join(sessionDir, 'function_call.log');
@@ -353,6 +373,7 @@ function getSessionDerived(sessionId) {
   const analysis = analyzer.analyzeEntries(entries);
   const slowFunctions = buildSlowFunctionStats(entries);
   const repeatedCalls = buildRepeatedCalls(entries, { windowMs: 100 });
+  const repeatedCallsOverall = buildRepeatedCallsOverall(slowFunctions);
 
   const value = {
     sessionId,
@@ -367,6 +388,7 @@ function getSessionDerived(sessionId) {
     analysis,
     slowFunctions,
     repeatedCalls,
+    repeatedCallsOverall,
   };
 
   sessionCache.set(sessionId, { cacheKey, value });
@@ -530,13 +552,19 @@ function handleGetSessionRepeatedCalls(req, res, sessionId, url) {
       return;
     }
 
+    const modeRaw = (url.searchParams.get('mode') || 'rapid').toLowerCase();
+    const mode = ['rapid', 'overall'].includes(modeRaw) ? modeRaw : 'rapid';
+
     const page = clampInt(url.searchParams.get('page'), 1, 1000000, 1);
     const pageSize = clampInt(url.searchParams.get('pageSize'), 1, 200, 20);
     const moduleFilter = url.searchParams.get('module') || 'all';
     const minCount = clampInt(url.searchParams.get('minCount'), 1, 1000000, 3);
     const search = (url.searchParams.get('search') || '').trim().toLowerCase();
 
-    let list = derived.repeatedCalls.filter((r) => r.count >= minCount);
+    let list =
+      mode === 'overall'
+        ? derived.repeatedCallsOverall.filter((r) => r.calls >= minCount)
+        : derived.repeatedCalls.filter((r) => r.count >= minCount);
     if (moduleFilter && moduleFilter !== 'all') {
       list = list.filter((r) => r.module === moduleFilter);
     }
@@ -557,7 +585,8 @@ function handleGetSessionRepeatedCalls(req, res, sessionId, url) {
           module: moduleFilter,
           minCount,
           search,
-          windowMs: 100,
+          mode,
+          windowMs: mode === 'rapid' ? 100 : undefined,
         },
       }),
     );

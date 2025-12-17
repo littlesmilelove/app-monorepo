@@ -49,6 +49,8 @@ export class BackgroundApiProxyBase
 {
   override serviceNameSpace = '';
 
+  private _methodPromiseCache = new Map<string, Promise<any>>();
+
   constructor({
     backgroundApi,
   }: {
@@ -125,6 +127,81 @@ export class BackgroundApiProxyBase
       serviceName = '';
     }
     let backgroundMethodName = `${INTERNAL_METHOD_PREFIX}${methodName}`;
+
+    const buildCacheKey = () => {
+      // Reduce extremely hot-path calls from UI -> BG that return large static
+      // payloads; otherwise the bridge + dev serializable checks dominate time.
+      if (sync) return undefined;
+      // serviceName might be `nameSpace@serviceNetwork` in some envs.
+      const isServiceNetwork =
+        serviceName === 'serviceNetwork' || serviceName.endsWith('@serviceNetwork');
+      if (!isServiceNetwork) return undefined;
+      if (methodName !== 'getVaultSettings') return undefined;
+      const networkId = (params?.[0] as { networkId?: string } | undefined)
+        ?.networkId;
+      if (!networkId) return undefined;
+      return `${serviceName}.${methodName}:${networkId}`;
+    };
+
+    const cacheKey = buildCacheKey();
+    if (cacheKey) {
+      const cached = this._methodPromiseCache.get(cacheKey);
+      if (cached) {
+        return cached;
+      }
+      const p = (async () => {
+        // use the same logic below, but only execute once per cache key
+        if (platformEnv.isExtension && platformEnv.isExtensionUi) {
+          const data: IBackgroundApiInternalCallMessage = {
+            service: serviceName,
+            method: backgroundMethodName,
+            params,
+          };
+          return appGlobals.extJsBridgeUiToBg.request({
+            data,
+          });
+        }
+
+        // some third party modules call native object methods, so we should NOT rename method
+        //    react-native/node_modules/pretty-format
+        //    expo/node_modules/pretty-format
+        const IGNORE_METHODS = ['hasOwnProperty', 'toJSON'];
+        if (platformEnv.isNative && IGNORE_METHODS.includes(methodName)) {
+          backgroundMethodName = methodName;
+        }
+        if (!this.backgroundApi) {
+          throw new OneKeyLocalError('backgroundApi not found in non-ext env');
+        }
+
+        const serviceApi = getBackgroundServiceApi({
+          serviceName,
+          backgroundApi: this.backgroundApi,
+        });
+
+        if (serviceApi[backgroundMethodName] && serviceApi[methodName]) {
+          const resultPromise = serviceApi[methodName].call(
+            serviceApi,
+            ...params,
+          );
+          ensurePromiseObject(resultPromise, {
+            serviceName,
+            methodName,
+          });
+          let result = await resultPromise;
+          result = ensureSerializable(result, true);
+          return result;
+        }
+        if (!IGNORE_METHODS.includes(backgroundMethodName)) {
+          return throwMethodNotFound(serviceName, backgroundMethodName);
+        }
+      })();
+
+      this._methodPromiseCache.set(cacheKey, p);
+      p.catch(() => {
+        this._methodPromiseCache.delete(cacheKey);
+      });
+      return p;
+    }
 
     if (platformEnv.isExtension && platformEnv.isExtensionUi) {
       const data: IBackgroundApiInternalCallMessage = {

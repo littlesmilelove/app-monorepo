@@ -13,6 +13,7 @@ const state = {
     items: [],
   },
   repeatedCalls: {
+    mode: 'rapid',
     page: 1,
     pageSize: 20,
     total: 0,
@@ -893,10 +894,17 @@ function renderRepeatedCalls() {
   const info = document.getElementById('repeatCallsPagerInfo');
   const prevBtn = document.getElementById('repeatPrev');
   const nextBtn = document.getElementById('repeatNext');
+  const countHeader = document.getElementById('repeatCountHeader');
   tbody.innerHTML = '';
+  const mode = state.repeatedCalls?.mode || 'rapid';
+  if (countHeader) {
+    countHeader.textContent = mode === 'overall' ? 'Calls' : 'Rapid calls';
+  }
   const repeats = state.repeatedCalls?.items || [];
   if (!repeats.length) {
-    tbody.innerHTML = '<tr><td colspan="4" class="py-3 text-center text-slate-500">No rapid repeats detected</td></tr>';
+    tbody.innerHTML = `<tr><td colspan="4" class="py-3 text-center text-slate-500">${
+      mode === 'overall' ? 'No repeated calls detected' : 'No rapid repeats detected'
+    }</td></tr>`;
     if (info) info.textContent = '0 items';
     if (prevBtn) prevBtn.disabled = true;
     if (nextBtn) nextBtn.disabled = true;
@@ -911,10 +919,11 @@ function renderRepeatedCalls() {
   if (nextBtn) nextBtn.disabled = state.repeatedCalls.page >= state.repeatedCalls.totalPages;
   repeats.forEach((r) => {
     const tr = document.createElement('tr');
+    const count = mode === 'overall' ? Number(r.calls || 0) : Number(r.count || 0);
     tr.innerHTML = `
       <td class="py-2 pr-4 font-semibold">${r.name}</td>
       <td class="py-2 pr-4 text-slate-400">${r.file ? `${r.file}:${r.line || 0}` : ''}</td>
-      <td class="py-2 pr-4 text-right">${Number(r.count || 0)}</td>
+      <td class="py-2 pr-4 text-right">${count}</td>
       <td class="py-2 pr-4 text-right">${Number(r.totalDuration || 0).toFixed(0)}</td>
     `;
     tbody.appendChild(tr);
@@ -1019,6 +1028,15 @@ function wireEvents() {
     await Promise.all([refreshSlowFunctions(), refreshRepeatedCalls()]);
   });
 
+  const repeatMode = document.getElementById('repeatMode');
+  if (repeatMode) {
+    repeatMode.addEventListener('change', async (e) => {
+      state.repeatedCalls.mode = e.target.value || 'rapid';
+      state.repeatedCalls.page = 1;
+      await refreshRepeatedCalls();
+    });
+  }
+
   const slowSize = document.getElementById('slowPageSize');
   if (slowSize) {
     slowSize.addEventListener('change', async (e) => {
@@ -1111,12 +1129,18 @@ async function refreshSlowFunctions() {
 async function refreshRepeatedCalls() {
   if (!state.currentSessionId) return;
   const moduleFilter = document.getElementById('moduleFilter')?.value || 'all';
+  const mode =
+    document.getElementById('repeatMode')?.value ||
+    state.repeatedCalls.mode ||
+    'rapid';
+  state.repeatedCalls.mode = mode;
 
   const params = new URLSearchParams();
   params.set('page', String(state.repeatedCalls.page));
   params.set('pageSize', String(state.repeatedCalls.pageSize));
   params.set('module', moduleFilter || 'all');
   params.set('minCount', '3');
+  params.set('mode', mode);
 
   const data = await fetchJSON(
     `/api/sessions/${state.currentSessionId}/repeated-calls?${params.toString()}`,

@@ -16,17 +16,7 @@ class ServiceBootstrap extends ServiceBase {
   }
 
   public async init() {
-    try {
-      toggleBgApiSerializableChecking(false);
-    } catch (error) {
-      console.error(error);
-    }
-
     await localDb.readyDb;
-
-    void preloadAllVaultSettings().catch((error) => {
-      console.error(error);
-    });
     try {
       await this.backgroundApi.serviceSetting.initSystemLocale();
     } catch (error) {
