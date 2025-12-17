@@ -5,6 +5,20 @@ const state = {
   currentSessionId: null,
   sessionData: null,
   analysis: null,
+  slowFunctions: {
+    page: 1,
+    pageSize: 50,
+    total: 0,
+    totalPages: 1,
+    items: [],
+  },
+  repeatedCalls: {
+    page: 1,
+    pageSize: 20,
+    total: 0,
+    totalPages: 1,
+    items: [],
+  },
   timeline: {
     minTs: 0,
     maxTs: 0,
@@ -835,34 +849,40 @@ function renderTimeline() {
 
 function renderSlowFunctions() {
   const tbody = document.getElementById('slowFunctionsBody');
+  const info = document.getElementById('slowFunctionsPagerInfo');
+  const prevBtn = document.getElementById('slowPrev');
+  const nextBtn = document.getElementById('slowNext');
   tbody.innerHTML = '';
-  const list = state.analysis?.analysis?.functions || state.analysis?.functions || [];
+  const list = state.slowFunctions?.items || [];
   if (!list.length) {
     tbody.innerHTML = '<tr><td colspan="7" class="py-3 text-center text-slate-500">No functions</td></tr>';
+    if (info) info.textContent = '0 items';
+    if (prevBtn) prevBtn.disabled = true;
+    if (nextBtn) nextBtn.disabled = true;
     return;
   }
-  const moduleFilter = document.getElementById('moduleFilter').value;
-  const threshold = Number(document.getElementById('durationThreshold').value) || 0;
-  let filtered = list;
-  if (moduleFilter && moduleFilter !== 'all') {
-    filtered = filtered.filter((f) => f.module === moduleFilter);
+  if (info) {
+    info.textContent = `Page ${state.slowFunctions.page} / ${state.slowFunctions.totalPages} • ${formatNumber(
+      state.slowFunctions.total,
+    )} items`;
   }
-  if (threshold > 0) {
-    filtered = filtered.filter((f) => f.max >= threshold || f.p95 >= threshold);
-  }
-  filtered.forEach((f, idx) => {
+  if (prevBtn) prevBtn.disabled = state.slowFunctions.page <= 1;
+  if (nextBtn) nextBtn.disabled = state.slowFunctions.page >= state.slowFunctions.totalPages;
+
+  const baseIndex = (state.slowFunctions.page - 1) * state.slowFunctions.pageSize;
+  list.forEach((f, idx) => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td class="py-2 pr-4 text-slate-400">${idx + 1}</td>
+      <td class="py-2 pr-4 text-slate-400">${baseIndex + idx + 1}</td>
       <td class="py-2 pr-4">
         <div class="font-semibold">${f.name}</div>
         <div class="text-xs text-slate-500">${f.file}:${f.line || 0}</div>
       </td>
       <td class="py-2 pr-4">${f.module}</td>
-      <td class="py-2 pr-4 text-right">${f.max.toFixed(1)}</td>
-      <td class="py-2 pr-4 text-right">${f.p95.toFixed(1)}</td>
-      <td class="py-2 pr-4 text-right">${f.avg.toFixed(1)}</td>
-      <td class="py-2 pr-4 text-right">${f.count}</td>
+      <td class="py-2 pr-4 text-right">${Number(f.max || 0).toFixed(1)}</td>
+      <td class="py-2 pr-4 text-right">${Number(f.p95 || 0).toFixed(1)}</td>
+      <td class="py-2 pr-4 text-right">${Number(f.avg || 0).toFixed(1)}</td>
+      <td class="py-2 pr-4 text-right">${Number(f.count || 0)}</td>
     `;
     tbody.appendChild(tr);
   });
@@ -870,19 +890,32 @@ function renderSlowFunctions() {
 
 function renderRepeatedCalls() {
   const tbody = document.getElementById('repeatCallsBody');
+  const info = document.getElementById('repeatCallsPagerInfo');
+  const prevBtn = document.getElementById('repeatPrev');
+  const nextBtn = document.getElementById('repeatNext');
   tbody.innerHTML = '';
-  const repeats = state.analysis?.analysis?.repeatedCalls || state.analysis?.repeatedCalls || [];
+  const repeats = state.repeatedCalls?.items || [];
   if (!repeats.length) {
     tbody.innerHTML = '<tr><td colspan="4" class="py-3 text-center text-slate-500">No rapid repeats detected</td></tr>';
+    if (info) info.textContent = '0 items';
+    if (prevBtn) prevBtn.disabled = true;
+    if (nextBtn) nextBtn.disabled = true;
     return;
   }
+  if (info) {
+    info.textContent = `Page ${state.repeatedCalls.page} / ${state.repeatedCalls.totalPages} • ${formatNumber(
+      state.repeatedCalls.total,
+    )} items`;
+  }
+  if (prevBtn) prevBtn.disabled = state.repeatedCalls.page <= 1;
+  if (nextBtn) nextBtn.disabled = state.repeatedCalls.page >= state.repeatedCalls.totalPages;
   repeats.forEach((r) => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td class="py-2 pr-4 font-semibold">${r.name}</td>
-      <td class="py-2 pr-4 text-slate-400">${r.file || ''}</td>
-      <td class="py-2 pr-4 text-right">${r.count}</td>
-      <td class="py-2 pr-4 text-right">${r.totalDuration.toFixed(0)}</td>
+      <td class="py-2 pr-4 text-slate-400">${r.file ? `${r.file}:${r.line || 0}` : ''}</td>
+      <td class="py-2 pr-4 text-right">${Number(r.count || 0)}</td>
+      <td class="py-2 pr-4 text-right">${Number(r.totalDuration || 0).toFixed(0)}</td>
     `;
     tbody.appendChild(tr);
   });
@@ -916,6 +949,8 @@ async function loadSession(sessionId) {
     state.currentSessionId = sessionId;
     state.sessionData = sessionData;
     state.analysis = analysis;
+    state.slowFunctions.page = 1;
+    state.repeatedCalls.page = 1;
     state.timelineAvailableModules = [];
     state.timelineSelectedModules = null;
     renderMeta();
@@ -923,8 +958,7 @@ async function loadSession(sessionId) {
     renderFps();
     renderTimeline();
     populateModuleFilter();
-    renderSlowFunctions();
-    renderRepeatedCalls();
+    await Promise.all([refreshSlowFunctions(), refreshRepeatedCalls()]);
   } catch (err) {
     alert(`Failed to load session: ${err.message}`);
   } finally {
@@ -979,9 +1013,62 @@ function wireEvents() {
   });
   document.getElementById('exportSpeedscope').addEventListener('click', exportSpeedscope);
   document.getElementById('exportRaw').addEventListener('click', downloadRaw);
-  document.getElementById('applyFilter').addEventListener('click', () => {
-    renderSlowFunctions();
+  document.getElementById('applyFilter').addEventListener('click', async () => {
+    state.slowFunctions.page = 1;
+    state.repeatedCalls.page = 1;
+    await Promise.all([refreshSlowFunctions(), refreshRepeatedCalls()]);
   });
+
+  const slowSize = document.getElementById('slowPageSize');
+  if (slowSize) {
+    slowSize.addEventListener('change', async (e) => {
+      state.slowFunctions.pageSize = Number(e.target.value) || 50;
+      state.slowFunctions.page = 1;
+      await refreshSlowFunctions();
+    });
+  }
+  const slowPrev = document.getElementById('slowPrev');
+  const slowNext = document.getElementById('slowNext');
+  if (slowPrev) {
+    slowPrev.addEventListener('click', async () => {
+      if (state.slowFunctions.page <= 1) return;
+      state.slowFunctions.page -= 1;
+      await refreshSlowFunctions();
+    });
+  }
+  if (slowNext) {
+    slowNext.addEventListener('click', async () => {
+      if (state.slowFunctions.page >= state.slowFunctions.totalPages) return;
+      state.slowFunctions.page += 1;
+      await refreshSlowFunctions();
+    });
+  }
+
+  const repeatSize = document.getElementById('repeatPageSize');
+  if (repeatSize) {
+    repeatSize.addEventListener('change', async (e) => {
+      state.repeatedCalls.pageSize = Number(e.target.value) || 20;
+      state.repeatedCalls.page = 1;
+      await refreshRepeatedCalls();
+    });
+  }
+  const repeatPrev = document.getElementById('repeatPrev');
+  const repeatNext = document.getElementById('repeatNext');
+  if (repeatPrev) {
+    repeatPrev.addEventListener('click', async () => {
+      if (state.repeatedCalls.page <= 1) return;
+      state.repeatedCalls.page -= 1;
+      await refreshRepeatedCalls();
+    });
+  }
+  if (repeatNext) {
+    repeatNext.addEventListener('click', async () => {
+      if (state.repeatedCalls.page >= state.repeatedCalls.totalPages) return;
+      state.repeatedCalls.page += 1;
+      await refreshRepeatedCalls();
+    });
+  }
+
   const selectAll = document.getElementById('moduleSelectAll');
   const selectNone = document.getElementById('moduleSelectNone');
   if (selectAll) {
@@ -997,6 +1084,49 @@ function wireEvents() {
       renderTimeline();
     });
   }
+}
+
+async function refreshSlowFunctions() {
+  if (!state.currentSessionId) return;
+  const moduleFilter = document.getElementById('moduleFilter')?.value || 'all';
+  const thresholdMs = Number(document.getElementById('durationThreshold')?.value) || 0;
+
+  const params = new URLSearchParams();
+  params.set('page', String(state.slowFunctions.page));
+  params.set('pageSize', String(state.slowFunctions.pageSize));
+  params.set('module', moduleFilter || 'all');
+  if (thresholdMs > 0) params.set('thresholdMs', String(thresholdMs));
+
+  const data = await fetchJSON(
+    `/api/sessions/${state.currentSessionId}/slow-functions?${params.toString()}`,
+  );
+  state.slowFunctions.total = Number(data.total || 0);
+  state.slowFunctions.page = Number(data.page || 1);
+  state.slowFunctions.pageSize = Number(data.pageSize || state.slowFunctions.pageSize);
+  state.slowFunctions.totalPages = Number(data.totalPages || 1);
+  state.slowFunctions.items = data.items || [];
+  renderSlowFunctions();
+}
+
+async function refreshRepeatedCalls() {
+  if (!state.currentSessionId) return;
+  const moduleFilter = document.getElementById('moduleFilter')?.value || 'all';
+
+  const params = new URLSearchParams();
+  params.set('page', String(state.repeatedCalls.page));
+  params.set('pageSize', String(state.repeatedCalls.pageSize));
+  params.set('module', moduleFilter || 'all');
+  params.set('minCount', '3');
+
+  const data = await fetchJSON(
+    `/api/sessions/${state.currentSessionId}/repeated-calls?${params.toString()}`,
+  );
+  state.repeatedCalls.total = Number(data.total || 0);
+  state.repeatedCalls.page = Number(data.page || 1);
+  state.repeatedCalls.pageSize = Number(data.pageSize || state.repeatedCalls.pageSize);
+  state.repeatedCalls.totalPages = Number(data.totalPages || 1);
+  state.repeatedCalls.items = data.items || [];
+  renderRepeatedCalls();
 }
 
 function renderSelection() {

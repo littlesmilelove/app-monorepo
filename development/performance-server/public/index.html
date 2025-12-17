@@ -236,6 +236,35 @@
             <tbody id="slowFunctionsBody"></tbody>
           </table>
         </div>
+        <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between text-sm">
+          <div id="slowFunctionsPagerInfo" class="text-xs text-slate-400">-</div>
+          <div class="flex flex-wrap items-center gap-2 text-xs text-slate-300">
+            <span class="text-slate-400">Page size</span>
+            <select
+              id="slowPageSize"
+              class="bg-dark-bg border border-dark-border rounded px-2 py-1"
+            >
+              <option value="20">20</option>
+              <option value="50" selected>50</option>
+              <option value="100">100</option>
+              <option value="200">200</option>
+            </select>
+            <button
+              id="slowPrev"
+              class="px-2 py-1 rounded border border-dark-border hover:bg-dark-hover"
+              type="button"
+            >
+              Prev
+            </button>
+            <button
+              id="slowNext"
+              class="px-2 py-1 rounded border border-dark-border hover:bg-dark-hover"
+              type="button"
+            >
+              Next
+            </button>
+          </div>
+        </div>
       </section>
 
       <section class="card space-y-3">
@@ -257,6 +286,36 @@
             </thead>
             <tbody id="repeatCallsBody"></tbody>
           </table>
+        </div>
+        <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between text-sm">
+          <div id="repeatCallsPagerInfo" class="text-xs text-slate-400">-</div>
+          <div class="flex flex-wrap items-center gap-2 text-xs text-slate-300">
+            <span class="text-slate-400">Page size</span>
+            <select
+              id="repeatPageSize"
+              class="bg-dark-bg border border-dark-border rounded px-2 py-1"
+            >
+              <option value="10">10</option>
+              <option value="20" selected>20</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+              <option value="200">200</option>
+            </select>
+            <button
+              id="repeatPrev"
+              class="px-2 py-1 rounded border border-dark-border hover:bg-dark-hover"
+              type="button"
+            >
+              Prev
+            </button>
+            <button
+              id="repeatNext"
+              class="px-2 py-1 rounded border border-dark-border hover:bg-dark-hover"
+              type="button"
+            >
+              Next
+            </button>
+          </div>
         </div>
       </section>
     </div>
