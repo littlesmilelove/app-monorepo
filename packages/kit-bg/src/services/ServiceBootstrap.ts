@@ -3,6 +3,7 @@ import platformEnv from '@onekeyhq/shared/src/platformEnv';
 import systemTimeUtils from '@onekeyhq/shared/src/utils/systemTimeUtils';
 
 import localDb from '../dbs/local/localDb';
+import { preloadAllVaultSettings } from '../vaults/settings';
 
 import ServiceBase from './ServiceBase';
 
@@ -14,6 +15,10 @@ class ServiceBootstrap extends ServiceBase {
 
   public async init() {
     await localDb.readyDb;
+
+    void preloadAllVaultSettings().catch((error) => {
+      console.error(error);
+    });
     try {
       await this.backgroundApi.serviceSetting.initSystemLocale();
     } catch (error) {
