@@ -1,5 +1,7 @@
 import { backgroundClass } from '@onekeyhq/shared/src/background/backgroundDecorators';
 import platformEnv from '@onekeyhq/shared/src/platformEnv';
+import '@onekeyhq/shared/src/storage/appStorage';
+import { toggleBgApiSerializableChecking } from '@onekeyhq/shared/src/utils/assertUtils';
 import systemTimeUtils from '@onekeyhq/shared/src/utils/systemTimeUtils';
 
 import localDb from '../dbs/local/localDb';
@@ -14,6 +16,12 @@ class ServiceBootstrap extends ServiceBase {
   }
 
   public async init() {
+    try {
+      toggleBgApiSerializableChecking(false);
+    } catch (error) {
+      console.error(error);
+    }
+
     await localDb.readyDb;
 
     void preloadAllVaultSettings().catch((error) => {
