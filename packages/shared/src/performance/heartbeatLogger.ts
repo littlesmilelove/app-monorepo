@@ -15,7 +15,6 @@ import {
   FUNCTION_WARN_REQUEST_MS,
 } from './heartbeatLogger.const';
 
-// Thresholds (support both legacy web env vars and RN profiler env vars)
 const perfThresholdMs = Number.parseInt(
   (typeof process !== 'undefined' && process.env?.RN_PROFILER_THRESHOLD_MS) ||
     (typeof process !== 'undefined' &&
