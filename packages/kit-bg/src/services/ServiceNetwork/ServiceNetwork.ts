@@ -1188,11 +1188,11 @@ class ServiceNetwork extends ServiceBase {
           );
 
           // Filter by firmware type (Bitcoin Only, etc.)
-          const wallet = await this.backgroundApi.serviceAccount.getWalletSafe({
-            walletId,
-            withoutRefill: true,
+          const firmwareType = await deviceUtils.getFirmwareType({
+            features: walletDevice.featuresInfo,
           });
-          if (wallet?.firmwareTypeAtCreated === EFirmwareType.BitcoinOnly) {
+
+          if (firmwareType === EFirmwareType.BitcoinOnly) {
             // Bitcoin Only firmware: only allow BTC implementation networks
             const nonBtcNetworks = networkVaultSettings
               .filter((o) => o.network.impl !== IMPL_BTC)
@@ -1251,11 +1251,11 @@ class ServiceNetwork extends ServiceBase {
 
         if (walletDevice) {
           // Filter by firmware type (Bitcoin Only, etc.)
-          const wallet = await this.backgroundApi.serviceAccount.getWalletSafe({
-            walletId,
-            withoutRefill: true,
+          const firmwareType = await deviceUtils.getFirmwareType({
+            features: walletDevice.featuresInfo,
           });
-          if (wallet?.firmwareTypeAtCreated === EFirmwareType.BitcoinOnly) {
+
+          if (firmwareType === EFirmwareType.BitcoinOnly) {
             // Bitcoin Only firmware: only allow BTC implementation networks
             const nonBtcNetworks = networkVaultSettings
               .filter((o) => o.network.impl !== IMPL_BTC)

@@ -9,15 +9,25 @@ import {
   Stack,
   YStack,
 } from '@onekeyhq/components';
+import backgroundApiProxy from '@onekeyhq/kit/src/background/instance/backgroundApiProxy';
 import { LightweightChart } from '@onekeyhq/kit/src/components/LightweightChart';
+import { usePromiseResult } from '@onekeyhq/kit/src/hooks/usePromiseResult';
 
 import type { UTCTimestamp } from 'lightweight-charts';
 
 interface IApyChartProps {
-  apyHistory?: { timestamp: number; apy: string }[] | null;
+  networkId: string;
+  symbol: string;
+  provider: string;
+  vault?: string;
 }
 
-const ApyChartComponent = ({ apyHistory }: IApyChartProps) => {
+const ApyChartComponent = ({
+  networkId,
+  symbol,
+  provider,
+  vault,
+}: IApyChartProps) => {
   const intl = useIntl();
 
   // Hover state for popover
@@ -84,22 +94,40 @@ const ApyChartComponent = ({ apyHistory }: IApyChartProps) => {
     [intl],
   );
 
-  const chartData = useMemo(() => {
-    if (!apyHistory || apyHistory.length === 0) {
-      return null;
-    }
-    const formattedData = apyHistory
-      .map((item) => ({
-        time: Math.floor(item.timestamp / 1000) as UTCTimestamp,
-        value: Number(item.apy),
-      }))
-      .sort((a, b) => a.time - b.time);
-    const marketChartData = formattedData.map(
-      (item) => [item.time, item.value] as [UTCTimestamp, number],
-    );
-    return { marketChartData };
-  }, [apyHistory]);
-  const isLoading = apyHistory === undefined;
+  const { result: chartData, isLoading } = usePromiseResult(
+    async () => {
+      const apyHistory = await backgroundApiProxy.serviceStaking.getApyHistory({
+        networkId,
+        symbol,
+        provider,
+        vault,
+      });
+
+      if (!apyHistory || apyHistory.length === 0) {
+        return null;
+      }
+
+      // Convert to chart format
+      // timestamp is in milliseconds, need to convert to seconds for UTCTimestamp
+      const formattedData = apyHistory
+        .map((item) => ({
+          time: Math.floor(item.timestamp / 1000) as UTCTimestamp,
+          value: Number(item.apy),
+        }))
+        .sort((a, b) => a.time - b.time);
+
+      // Convert to Market chart format [timestamp, value][]
+      const marketChartData = formattedData.map(
+        (item) => [item.time, item.value] as [UTCTimestamp, number],
+      );
+
+      return {
+        marketChartData,
+      };
+    },
+    [networkId, symbol, provider, vault],
+    { watchLoading: true },
+  );
 
   return (
     <>

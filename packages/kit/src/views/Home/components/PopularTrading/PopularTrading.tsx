@@ -1,6 +1,5 @@
 import { useCallback, useMemo, useRef } from 'react';
 
-import BigNumber from 'bignumber.js';
 import { useIntl } from 'react-intl';
 
 import {
@@ -55,7 +54,7 @@ function PopularTrading({ tableLayout }: { tableLayout?: boolean }) {
               <XStack alignItems="center" gap="$2">
                 <Token
                   size="md"
-                  tokenImageUri={record.tokenDetail?.info?.logoURI ?? ''}
+                  tokenImageUri={record.tokenDetail.info.logoURI}
                   networkId={record.networkId}
                   showNetworkIcon
                 />
@@ -64,7 +63,7 @@ function PopularTrading({ tableLayout }: { tableLayout?: boolean }) {
                     {record.symbol}
                   </SizableText>
                   <SizableText size="$bodyMd" color="$textSubdued">
-                    {record.tokenDetail?.info?.name ?? '-'}
+                    {record.tokenDetail.info.name}
                   </SizableText>
                 </YStack>
               </XStack>
@@ -80,7 +79,7 @@ function PopularTrading({ tableLayout }: { tableLayout?: boolean }) {
               formatter="price"
               formatterOptions={{ currency: currencyInfo?.symbol }}
             >
-              {record.tokenDetail?.price ?? '-'}
+              {record.tokenDetail.price}
             </NumberSizeableText>
           ),
         },
@@ -90,7 +89,7 @@ function PopularTrading({ tableLayout }: { tableLayout?: boolean }) {
           render: (_: unknown, record: IPopularTrading) => {
             const { changeColor, showPlusMinusSigns } =
               getTokenPriceChangeStyle({
-                priceChange: record.tokenDetail?.price24h ?? 0,
+                priceChange: record.tokenDetail.price24h ?? 0,
               });
             return (
               <NumberSizeableText
@@ -99,7 +98,7 @@ function PopularTrading({ tableLayout }: { tableLayout?: boolean }) {
                 color={changeColor}
                 size="$bodyMdMedium"
               >
-                {record.tokenDetail?.price24h ?? '-'}
+                {record.tokenDetail.price24h}
               </NumberSizeableText>
             );
           },
@@ -113,7 +112,7 @@ function PopularTrading({ tableLayout }: { tableLayout?: boolean }) {
               formatter="marketCap"
               formatterOptions={{ currency: currencyInfo?.symbol }}
             >
-              {new BigNumber(marketCap).isNaN() ? '-' : marketCap}
+              {marketCap}
             </NumberSizeableText>
           ),
         },
@@ -132,7 +131,7 @@ function PopularTrading({ tableLayout }: { tableLayout?: boolean }) {
             <XStack alignItems="center" gap="$2">
               <Token
                 size="lg"
-                tokenImageUri={record.tokenDetail?.info?.logoURI ?? ''}
+                tokenImageUri={record.tokenDetail.info.logoURI}
                 networkId={record.networkId}
                 showNetworkIcon
               />
@@ -143,9 +142,7 @@ function PopularTrading({ tableLayout }: { tableLayout?: boolean }) {
                   formatter="marketCap"
                   formatterOptions={{ currency: currencyInfo?.symbol }}
                 >
-                  {new BigNumber(record.marketCap).isNaN()
-                    ? '-'
-                    : record.marketCap}
+                  {record.marketCap}
                 </NumberSizeableText>
               </YStack>
             </XStack>
@@ -157,7 +154,7 @@ function PopularTrading({ tableLayout }: { tableLayout?: boolean }) {
         title: intl.formatMessage({ id: ETranslations.global_price }),
         render: (_: unknown, record: IPopularTrading) => {
           const { changeColor, showPlusMinusSigns } = getTokenPriceChangeStyle({
-            priceChange: record.tokenDetail?.price24h ?? 0,
+            priceChange: record.tokenDetail.price24h ?? 0,
           });
           return (
             <YStack alignItems="flex-end">
@@ -166,7 +163,7 @@ function PopularTrading({ tableLayout }: { tableLayout?: boolean }) {
                 formatter="price"
                 formatterOptions={{ currency: currencyInfo?.symbol }}
               >
-                {record.tokenDetail?.price ?? '-'}
+                {record.tokenDetail.price}
               </NumberSizeableText>
               <NumberSizeableText
                 formatter="priceChange"
@@ -174,7 +171,7 @@ function PopularTrading({ tableLayout }: { tableLayout?: boolean }) {
                 color={changeColor}
                 size="$bodyMd"
               >
-                {record.tokenDetail?.price24h ?? '-'}
+                {record.tokenDetail.price24h}
               </NumberSizeableText>
             </YStack>
           );
@@ -250,10 +247,10 @@ function PopularTrading({ tableLayout }: { tableLayout?: boolean }) {
                   contractAddress: record.address,
                   symbol: record.symbol,
                   networkId: record.networkId,
-                  isNative: record.tokenDetail?.info?.isNative ?? false,
-                  decimals: record.tokenDetail?.info?.decimals ?? 0,
-                  name: record.tokenDetail?.info?.name ?? '-',
-                  logoURI: record.tokenDetail?.info?.logoURI ?? '',
+                  isNative: record.tokenDetail.info.isNative,
+                  decimals: record.tokenDetail.info.decimals,
+                  name: record.tokenDetail.info.name,
+                  logoURI: record.tokenDetail.info.logoURI,
                 },
                 swapTabSwitchType,
                 swapSource: ESwapSource.WALLET_HOME_POPULAR_TRADING,

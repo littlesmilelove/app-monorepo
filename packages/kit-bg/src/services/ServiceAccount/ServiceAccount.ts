@@ -5559,10 +5559,6 @@ class ServiceAccount extends ServiceBase {
       return undefined;
     }
 
-    if (activeNetworkImpl === IMPL_ALLNETWORKS) {
-      return undefined;
-    }
-
     const isBtcOnlyFirmware = await this.isBtcOnlyFirmwareByWalletId({
       walletId: finalWalletId,
       featuresInfo: featuresInfoCache,

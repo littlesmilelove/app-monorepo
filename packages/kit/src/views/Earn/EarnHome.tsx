@@ -77,7 +77,7 @@ function BasicEarnHome({
   const { isFetchingBlockResult, refreshBlockResult, blockResult } =
     useBlockRegion();
 
-  const { earnBanners } = useBannerInfo();
+  const { earnBanners, refetchBanners } = useBannerInfo();
   const { faqList, isFaqLoading, refetchFAQ } = useFAQListInfo();
   const [isEarnTabFocused, setIsEarnTabFocused] = useState(true);
   const wasFocusedRef = useRef(false);
@@ -148,9 +148,10 @@ function BasicEarnHome({
         actions.current.triggerRefresh();
       }
 
+      void refetchBanners();
       void refetchFAQ();
     },
-    [actions, refetchFAQ],
+    [actions, refetchBanners, refetchFAQ],
   );
 
   useListenTabFocusState(

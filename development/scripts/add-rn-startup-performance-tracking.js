@@ -130,18 +130,32 @@ export {};
     }
 
     // Add end tracking code
+    // Reports to performance server via globalThis.__perfReportModuleLoad if available
+    // Otherwise buffers to globalThis.__perfModuleBuffer for later reporting
     const endCode = `\nif (typeof (globalThis as any).$$perfStart_${varName} !== 'undefined') {
   const $$perfEnd = typeof globalThis.nativePerformanceNow === 'function' ? globalThis.nativePerformanceNow() : Date.now();
   const $$perfDuration = $$perfEnd - (globalThis as any).$$perfStart_${varName};
-  if (__DEV__) {
-    if (globalThis.$rn_startup_performance_times === undefined) {
-      globalThis.$rn_startup_performance_times = [];
-    }
-    globalThis.$rn_startup_performance_times.push({
-      path: '${relativePath.replace(/\\/g, '/')}',
-      duration: $$perfDuration,
+  const $$perfModuleData = {
+    path: '${relativePath.replace(/\\/g, '/')}',
+    duration: $$perfDuration,
+  };
+
+  // Report to performance server if reporter is ready
+  if (typeof (globalThis as any).__perfReportModuleLoad === 'function') {
+    (globalThis as any).__perfReportModuleLoad($$perfModuleData);
+  } else {
+    // Buffer for later reporting when reporter is initialized
+    (globalThis as any).__perfModuleBuffer = (globalThis as any).__perfModuleBuffer || [];
+    (globalThis as any).__perfModuleBuffer.push({
+      ...$$perfModuleData,
+      ts: Date.now(),
     });
-    console.log('[Performance] ${relativePath.replace(/\\/g, '/')}: ' + $$perfDuration + 'ms');
+  }
+
+  // Also store locally for backward compatibility
+  if (typeof __DEV__ !== 'undefined' && __DEV__) {
+    (globalThis as any).$rn_startup_performance_times = (globalThis as any).$rn_startup_performance_times || [];
+    (globalThis as any).$rn_startup_performance_times.push($$perfModuleData);
   }
 }
 `;

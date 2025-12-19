@@ -7,7 +7,6 @@ node_modules/
 .expo/
 dist/
 web-build/
-test-identity-extension/
 
 # Native
 *.orig.*

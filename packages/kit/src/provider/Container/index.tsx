@@ -1,3 +1,5 @@
+import { useEffect } from 'react';
+
 import { RootSiblingParent } from 'react-native-root-siblings';
 
 import {
@@ -7,6 +9,11 @@ import {
 } from '@onekeyhq/components';
 import appGlobals from '@onekeyhq/shared/src/appGlobals';
 import LazyLoad from '@onekeyhq/shared/src/lazyLoad';
+import {
+  isDualScreenDevice,
+  isSpanning,
+} from '@onekeyhq/shared/src/modules/DualScreenInfo/DualScreenInfo';
+import platformEnv from '@onekeyhq/shared/src/platformEnv';
 
 import { WalletBackupPreCheckContainer } from '../../components/WalletBackup';
 import useAppNavigation from '../../hooks/useAppNavigation';
@@ -88,7 +95,18 @@ function MainRouter() {
 const tabletMainViewContext = { viewType: ETabletViewType.MAIN };
 const tabletDetailViewContext = { viewType: ETabletViewType.DETAIL };
 
+const usePreCheckIsDualScreenDevice = platformEnv.isNativeAndroid
+  ? () => {
+      useEffect(() => {
+        setTimeout(() => {
+          void Promise.all([isDualScreenDevice(), isSpanning()]);
+        });
+      }, []);
+    }
+  : () => {};
+
 export function Container() {
+  usePreCheckIsDualScreenDevice();
   const isTablet = useIsNativeTablet();
   if (isTablet) {
     return (

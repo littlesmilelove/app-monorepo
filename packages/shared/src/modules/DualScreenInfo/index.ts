@@ -1,11 +1,23 @@
-export const isDualScreenDevice = () => {
-  return false;
+import {
+  addSpanningListener,
+  getHingeBounds,
+  getWindowRects,
+  isDualScreenDevice,
+  isSpanning,
+  removeAllSpanningListeners,
+} from './DualScreenInfo';
+
+// Default export
+const DualScreenInfo = {
+  isDualScreenDevice,
+  isSpanning,
+  getWindowRects,
+  getHingeBounds,
+  addSpanningListener,
+  removeAllSpanningListeners,
 };
 
-export const isSpanning = () => {
-  return false;
-};
+export default DualScreenInfo;
 
-export const useIsSpanningInDualScreen = () => {
-  return false;
-};
+export { useDualScreenInfo } from './useDualScreenInfo';
+export type { IUseDualScreenInfoResult } from './type';

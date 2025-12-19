@@ -99,8 +99,6 @@ const SwapProActionButton = ({
       onPress={debouncedOnSwapProActionClick}
       variant="primary"
       size="small"
-      color="$textOnColor"
-      py={5}
       backgroundColor={
         swapProDirection === ESwapDirection.BUY
           ? '$bgSuccessStrong'

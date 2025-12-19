@@ -31,6 +31,7 @@ function buildEnvExposedToClientDangerously({ platform }) {
     'SENTRY_DSN_WINMS',
     'SENTRY_DSN_REACT_NATIVE',
     'SENTRY_DSN_WEB',
+    'PERF_MONITOR_ENABLED',
   ];
   // ***        also update Inject Environment Variables at release-ios.yml, release-android      ***
 

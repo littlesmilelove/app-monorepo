@@ -266,7 +266,6 @@ function DesktopCustomTabBarItem({
   showTooltipRef.current = showTooltip;
   const showTooltipTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const closeTooltipTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
   const handleHoverIn = useCallback(() => {
     if (showTooltipRef.current) {
       if (closeTooltipTimer.current) {
@@ -303,6 +302,10 @@ function DesktopCustomTabBarItem({
             onHoverIn={handleHoverIn}
             onHoverOut={handleHoverOut}
           >
+            <DesktopTabItemImage avatarSrc={tab?.favicon} selected={isActive} />
+            <SizableText size="$bodyMd" width="$24" numberOfLines={1}>
+              {label}
+            </SizableText>
             <IconButton
               size="small"
               icon="CrossedSmallOutline"
@@ -317,10 +320,6 @@ function DesktopCustomTabBarItem({
               }
               onPress={closeTab}
             />
-            <DesktopTabItemImage avatarSrc={tab?.favicon} selected={isActive} />
-            <SizableText size="$bodyMd" numberOfLines={1}>
-              {label}
-            </SizableText>
           </XStack>
         }
         renderTrigger={

@@ -1,21 +1,47 @@
-import { forwardRef, useMemo } from 'react';
+import { forwardRef } from 'react';
+
+import { Skeleton as MotiSkeleton } from 'moti/skeleton';
 
 import {
+  type StackStyle,
   styled,
+  usePropsAndStyle,
+  useThemeName,
   withStaticProperties,
 } from '@onekeyhq/components/src/shared/tamagui';
 
+import { useSettingConfig } from '../../hocs/Provider/hooks/useProviderValue';
 import { YStack } from '../Stack';
 
-import { BaseSkeleton } from './BaseSkeleton';
-import { SkeletonProvider } from './context';
+import type { MotiSkeletonProps } from 'moti/build/skeleton/types';
 
-import type { ISkeletonProps } from './type';
+export type ISkeletonProps = Omit<
+  MotiSkeletonProps,
+  'Gradient' | 'height' | 'width'
+> &
+  StackStyle;
+
+function BasicSkeleton({ children, ...props }: ISkeletonProps) {
+  const [restProps, style] = usePropsAndStyle(props, {
+    resolveValues: 'auto',
+  });
+  const { theme } = useSettingConfig();
+  const themeName = useThemeName();
+  return (
+    <MotiSkeleton
+      colorMode={themeName || theme}
+      {...(style as any)}
+      {...restProps}
+    >
+      {children}
+    </MotiSkeleton>
+  );
+}
 
 function BodySmSkeleton({ ...props }: ISkeletonProps) {
   return (
     <YStack py="$1">
-      <BaseSkeleton w={64} h="$2" {...props} />
+      <BasicSkeleton w={64} h="$2" {...props} />
     </YStack>
   );
 }
@@ -23,7 +49,7 @@ function BodySmSkeleton({ ...props }: ISkeletonProps) {
 function BodyMdSkeleton({ ...props }: ISkeletonProps) {
   return (
     <YStack py="$1">
-      <BaseSkeleton w={72} h="$3" {...props} />
+      <BasicSkeleton w={72} h="$3" {...props} />
     </YStack>
   );
 }
@@ -31,7 +57,7 @@ function BodyMdSkeleton({ ...props }: ISkeletonProps) {
 function BodyLgSkeleton({ ...props }: ISkeletonProps) {
   return (
     <YStack py="$1">
-      <BaseSkeleton w={82} h="$4" {...props} />
+      <BasicSkeleton w={82} h="$4" {...props} />
     </YStack>
   );
 }
@@ -39,7 +65,7 @@ function BodyLgSkeleton({ ...props }: ISkeletonProps) {
 function HeadingXsSkeleton({ ...props }: ISkeletonProps) {
   return (
     <YStack py="$1">
-      <BaseSkeleton w={91} h="$2" {...props} />
+      <BasicSkeleton w={91} h="$2" {...props} />
     </YStack>
   );
 }
@@ -47,7 +73,7 @@ function HeadingXsSkeleton({ ...props }: ISkeletonProps) {
 function HeadingSmSkeleton({ ...props }: ISkeletonProps) {
   return (
     <YStack py="$1">
-      <BaseSkeleton w={77} h="$3" {...props} />
+      <BasicSkeleton w={77} h="$3" {...props} />
     </YStack>
   );
 }
@@ -55,7 +81,7 @@ function HeadingSmSkeleton({ ...props }: ISkeletonProps) {
 function HeadingMdSkeleton({ ...props }: ISkeletonProps) {
   return (
     <YStack py="$1">
-      <BaseSkeleton w={86} h="$4" {...props} />
+      <BasicSkeleton w={86} h="$4" {...props} />
     </YStack>
   );
 }
@@ -63,7 +89,7 @@ function HeadingMdSkeleton({ ...props }: ISkeletonProps) {
 function HeadingLgSkeleton({ ...props }: ISkeletonProps) {
   return (
     <YStack py="$1">
-      <BaseSkeleton w={96} h="$4" {...props} />
+      <BasicSkeleton w={96} h="$4" {...props} />
     </YStack>
   );
 }
@@ -71,7 +97,7 @@ function HeadingLgSkeleton({ ...props }: ISkeletonProps) {
 function HeadingXlSkeleton({ ...props }: ISkeletonProps) {
   return (
     <YStack py="$1">
-      <BaseSkeleton w={103} h="$5" {...props} />
+      <BasicSkeleton w={103} h="$5" {...props} />
     </YStack>
   );
 }
@@ -79,7 +105,7 @@ function HeadingXlSkeleton({ ...props }: ISkeletonProps) {
 function Heading2XlSkeleton({ ...props }: ISkeletonProps) {
   return (
     <YStack py="$1">
-      <BaseSkeleton w={123} h="$6" {...props} />
+      <BasicSkeleton w={123} h="$6" {...props} />
     </YStack>
   );
 }
@@ -87,7 +113,7 @@ function Heading2XlSkeleton({ ...props }: ISkeletonProps) {
 function Heading3XlSkeleton({ ...props }: ISkeletonProps) {
   return (
     <YStack py="$1">
-      <BaseSkeleton w={143} h="$7" {...props} />
+      <BasicSkeleton w={143} h="$7" {...props} />
     </YStack>
   );
 }
@@ -95,7 +121,7 @@ function Heading3XlSkeleton({ ...props }: ISkeletonProps) {
 function Heading4XlSkeleton({ ...props }: ISkeletonProps) {
   return (
     <YStack py="$1">
-      <BaseSkeleton w={163} h="$8" {...props} />
+      <BasicSkeleton w={163} h="$8" {...props} />
     </YStack>
   );
 }
@@ -103,32 +129,17 @@ function Heading4XlSkeleton({ ...props }: ISkeletonProps) {
 function Heading5XlSkeleton({ ...props }: ISkeletonProps) {
   return (
     <YStack py="$1">
-      <BaseSkeleton w={209} h="$10" {...props} />
+      <BasicSkeleton w={209} h="$10" {...props} />
     </YStack>
   );
 }
 
-function SkeletonGroup({
-  show,
-  children,
-}: {
-  show: boolean;
-  children: React.ReactNode;
-}) {
-  const value = useMemo(() => ({ isLoading: show }), [show]);
-  return (
-    <SkeletonProvider.Provider value={value}>
-      {children}
-    </SkeletonProvider.Provider>
-  );
-}
-
 export const Skeleton = withStaticProperties(
-  styled(forwardRef(BaseSkeleton), {
+  styled(forwardRef(BasicSkeleton), {
     name: 'Skeleton',
   } as const),
   {
-    Group: SkeletonGroup,
+    Group: MotiSkeleton.Group,
     BodySm: BodySmSkeleton,
     BodyMd: BodyMdSkeleton,
     BodyLg: BodyLgSkeleton,
@@ -152,7 +163,8 @@ export function SkeletonContainer({
   isLoading: boolean;
   children: React.ReactNode;
 }) {
-  return isLoading ? <Skeleton {...props} /> : children;
+  if (isLoading) {
+    return <Skeleton {...props} />;
+  }
+  return children;
 }
-
-export type { ISkeletonProps } from './type';
