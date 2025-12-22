@@ -1,8 +1,11 @@
 import { backgroundClass } from '@onekeyhq/shared/src/background/backgroundDecorators';
 import platformEnv from '@onekeyhq/shared/src/platformEnv';
+import '@onekeyhq/shared/src/storage/appStorage';
+import { toggleBgApiSerializableChecking } from '@onekeyhq/shared/src/utils/assertUtils';
 import systemTimeUtils from '@onekeyhq/shared/src/utils/systemTimeUtils';
 
 import localDb from '../dbs/local/localDb';
+import { preloadAllVaultSettings } from '../vaults/settings';
 
 import ServiceBase from './ServiceBase';
 
