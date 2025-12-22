@@ -21,6 +21,7 @@ import {
 import backgroundApiProxy from '@onekeyhq/kit/src/background/instance/backgroundApiProxy';
 import { AccountSelectorProviderMirror } from '@onekeyhq/kit/src/components/AccountSelector';
 import useAppNavigation from '@onekeyhq/kit/src/hooks/useAppNavigation';
+import { useCustomRpcAvailability } from '@onekeyhq/kit/src/hooks/useCustomRpcAvailability';
 import {
   useSwapActions,
   useSwapAlertsAtom,
@@ -98,9 +99,11 @@ import { useSwapBuildTx } from '../../hooks/useSwapBuiltTx';
 import { useSwapInit } from '../../hooks/useSwapGlobal';
 import {
   useSwapProAccount,
+  useSwapProErrorAlert,
   useSwapProInit,
   useSwapProInputToken,
   useSwapProToToken,
+  useSwapProTokenInit,
 } from '../../hooks/useSwapPro';
 import { useSwapQuote } from '../../hooks/useSwapQuote';
 import {
@@ -131,7 +134,7 @@ interface ISwapMainLoadProps {
 }
 
 const SwapMainLoad = ({ swapInitParams, pageType }: ISwapMainLoadProps) => {
-  const { preSwapStepsStart } = useSwapBuildTx();
+  const { preSwapStepsStart, preSwapBeforeStepActions } = useSwapBuildTx();
   const intl = useIntl();
   const { fetchLoading } = useSwapInit(swapInitParams);
   const navigation =
@@ -141,6 +144,10 @@ const SwapMainLoad = ({ swapInitParams, pageType }: ISwapMainLoadProps) => {
   const [swapTypeSwitch] = useSwapTypeSwitchAtom();
   const toAddressInfo = useSwapAddressInfo(ESwapDirectionType.TO);
   const swapFromAddressInfo = useSwapAddressInfo(ESwapDirectionType.FROM);
+  // Check custom RPC availability for the from network
+  const { isCustomRpcUnavailable } = useCustomRpcAvailability(
+    swapFromAddressInfo.networkId,
+  );
   const quoteLoading = useSwapQuoteLoading();
   const quoteEventFetching = useSwapQuoteEventFetching();
   const [{ swapRecentTokenPairs }] = useInAppNotificationAtom();
@@ -199,8 +206,6 @@ const SwapMainLoad = ({ swapInitParams, pageType }: ISwapMainLoadProps) => {
     return swapTypeSwitch;
   }, [focusSwapPro, swapProTradeType, swapTypeSwitch]);
 
-  useSwapProInit();
-
   const [swapNativeTokenReserveGas] = useSwapNativeTokenReserveGasAtom();
   const swapSlippageRef = useRef(slippageItem);
   if (swapSlippageRef.current !== slippageItem) {
@@ -248,14 +253,18 @@ const SwapMainLoad = ({ swapInitParams, pageType }: ISwapMainLoadProps) => {
     [navigation, storeName],
   );
 
-  const onProSelectToken = useCallback(() => {
-    navigation.pushModal(EModalRoutes.SwapModal, {
-      screen: EModalSwapRoutes.SwapProSelectToken,
-      params: {
-        storeName,
-      },
-    });
-  }, [navigation, storeName]);
+  const onProSelectToken = useCallback(
+    (autoSearch?: boolean) => {
+      navigation.pushModal(EModalRoutes.SwapModal, {
+        screen: EModalSwapRoutes.SwapProSelectToken,
+        params: {
+          storeName,
+          autoSearch,
+        },
+      });
+    },
+    [navigation, storeName],
+  );
 
   const onProMarketDetail = useCallback(() => {
     navigation.pushModal(EModalRoutes.SwapModal, {
@@ -692,9 +701,10 @@ const SwapMainLoad = ({ swapInitParams, pageType }: ISwapMainLoadProps) => {
         swapType: swapTypeFinal,
         fromToken: fromSelectToken,
         toToken: toSelectToken,
-        shouldFallback: SwapBuildShouldFallBackNetworkIds.includes(
-          fromSelectToken?.networkId ?? '',
-        ),
+        shouldFallback:
+          SwapBuildShouldFallBackNetworkIds.includes(
+            fromSelectToken?.networkId ?? '',
+          ) || isCustomRpcUnavailable,
         fromTokenAmount:
           focusSwapPro && swapProTradeType === ESwapProTradeType.MARKET
             ? swapProInputAmount
@@ -744,6 +754,7 @@ const SwapMainLoad = ({ swapInitParams, pageType }: ISwapMainLoadProps) => {
     intl,
     createBatchApproveSwapStep,
     createSendTxStep,
+    isCustomRpcUnavailable,
   ]);
   const onActionHandler = useCallback(() => {
     if (
@@ -890,7 +901,7 @@ const SwapMainLoad = ({ swapInitParams, pageType }: ISwapMainLoadProps) => {
         steps: [],
         preSwapData: {},
       });
-    }, 500);
+    }, 100);
   }, [setSwapBuildTxFetching, dialogClose, setSwapSteps]);
 
   const handleSelectAccountClick = useCallback(() => {
@@ -944,6 +955,8 @@ const SwapMainLoad = ({ swapInitParams, pageType }: ISwapMainLoadProps) => {
                     }
                   >
                     <PreSwapDialogContent
+                      preSwapBeforeStepActions={preSwapBeforeStepActions}
+                      preSwapStepsStart={preSwapStepsStart}
                       onConfirm={handleConfirm}
                       onDone={onPreSwapClose}
                     />
@@ -975,6 +988,8 @@ const SwapMainLoad = ({ swapInitParams, pageType }: ISwapMainLoadProps) => {
                     }
                   >
                     <PreSwapDialogContent
+                      preSwapBeforeStepActions={preSwapBeforeStepActions}
+                      preSwapStepsStart={preSwapStepsStart}
                       onDone={onPreSwapClose}
                       onConfirm={handleConfirm}
                     />
@@ -998,6 +1013,8 @@ const SwapMainLoad = ({ swapInitParams, pageType }: ISwapMainLoadProps) => {
     InModalDialog,
     onPreSwapClose,
     intl,
+    preSwapBeforeStepActions,
+    preSwapStepsStart,
     handleConfirm,
     InTabDialog,
   ]);
@@ -1016,6 +1033,16 @@ const SwapMainLoad = ({ swapInitParams, pageType }: ISwapMainLoadProps) => {
     [navigation, storeName],
   );
 
+  const { networkList } = useSwapProInit();
+  const {
+    isLoading,
+    speedConfig,
+    balanceLoading,
+    isMEV,
+    hasEnoughBalance,
+    supportSpeedSwap,
+  } = useSwapProTokenInit();
+  useSwapProErrorAlert(!supportSpeedSwap);
   useSwapQuote();
 
   return (
@@ -1025,6 +1052,11 @@ const SwapMainLoad = ({ swapInitParams, pageType }: ISwapMainLoadProps) => {
       marginHorizontal="auto"
       width="100%"
       maxWidth={pageType === EPageType.modal ? '100%' : 500}
+      pt="$2.5"
+      $gtMd={{
+        flex: 'unset',
+        pt: pageType === EPageType.modal ? '$2.5' : '$5',
+      }}
     >
       <SwapTipsContainer />
       <SwapHeaderContainer
@@ -1039,6 +1071,14 @@ const SwapMainLoad = ({ swapInitParams, pageType }: ISwapMainLoadProps) => {
           onSwapProActionClick={onPreSwap}
           handleSelectAccountClick={handleSelectAccountClick}
           onProMarketDetail={onProMarketDetail}
+          config={{
+            isLoading,
+            speedConfig,
+            balanceLoading,
+            isMEV,
+            hasEnoughBalance,
+            networkList,
+          }}
         />
       ) : (
         <ScrollView

@@ -8,7 +8,6 @@ import {
 } from 'react';
 
 import {
-  Page,
   RefreshControl,
   Stack,
   XStack,
@@ -17,6 +16,10 @@ import {
 } from '@onekeyhq/components';
 import backgroundApiProxy from '@onekeyhq/kit/src/background/instance/backgroundApiProxy';
 import { EJotaiContextStoreNames } from '@onekeyhq/kit-bg/src/states/jotai/atoms';
+import {
+  EAppEventBusNames,
+  appEventBus,
+} from '@onekeyhq/shared/src/eventBus/appEventBus';
 import { ETranslations } from '@onekeyhq/shared/src/locale';
 import platformEnv from '@onekeyhq/shared/src/platformEnv';
 import type {
@@ -78,7 +81,7 @@ function BasicEarnHome({
   const { isFetchingBlockResult, refreshBlockResult, blockResult } =
     useBlockRegion();
 
-  const { earnBanners, refetchBanners } = useBannerInfo();
+  const { earnBanners } = useBannerInfo();
   const { faqList, isFaqLoading, refetchFAQ } = useFAQListInfo();
   const [isEarnTabFocused, setIsEarnTabFocused] = useState(true);
   const wasFocusedRef = useRef(false);
@@ -149,10 +152,9 @@ function BasicEarnHome({
         actions.current.triggerRefresh();
       }
 
-      void refetchBanners();
       void refetchFAQ();
     },
-    [actions, refetchBanners, refetchFAQ],
+    [actions, refetchFAQ],
   );
 
   useListenTabFocusState(
@@ -269,11 +271,8 @@ function BasicEarnHome({
           <Stack h={tabPageHeight} />
         ) : null}
         <EarnMainTabs
-          isMobile
           faqList={faqList || []}
           isFaqLoading={isFaqLoading}
-          isAccountsLoading={isLoading}
-          refreshEarnAccounts={refreshEarnData}
           defaultTab={defaultTab}
           portfolioData={portfolioData}
           containerProps={mobileContainerProps}
@@ -303,6 +302,7 @@ function BasicEarnHome({
     <EarnPageContainer
       sceneName={EAccountSelectorSceneName.home}
       tabRoute={ETabRoutes.Earn}
+      disableMaxWidth
       refreshControl={
         <RefreshControl refreshing={isLoading} onRefresh={refreshEarnData} />
       }
@@ -319,13 +319,10 @@ function BasicEarnHome({
           ) : null}
         </YStack>
         <EarnMainTabs
-          isMobile={false}
           faqList={faqList || []}
           isFaqLoading={isFaqLoading}
-          isAccountsLoading={isLoading}
           defaultTab={defaultTab}
           portfolioData={portfolioData}
-          refreshEarnAccounts={refreshEarnData}
         />
       </YStack>
     </EarnPageContainer>

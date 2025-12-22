@@ -1,18 +1,23 @@
 import { memo, useCallback, useEffect, useMemo, useRef } from 'react';
 
+import { useIsFocused } from '@react-navigation/core';
 import { useIntl } from 'react-intl';
 
 import type { ITabContainerRef } from '@onekeyhq/components';
 import {
-  RefreshControl,
   Tabs,
   YStack,
   rootNavigationRef,
   useTabContainerWidth,
 } from '@onekeyhq/components';
+import {
+  EAppEventBusNames,
+  appEventBus,
+} from '@onekeyhq/shared/src/eventBus/appEventBus';
 import { ETranslations } from '@onekeyhq/shared/src/locale';
 import platformEnv from '@onekeyhq/shared/src/platformEnv';
 
+import { useIsFirstFocused } from '../../../hooks/useIsFirstFocused';
 import { useRouteIsFocused } from '../../../hooks/useRouteIsFocused';
 
 import { FAQContent } from './FAQContent';
@@ -20,26 +25,23 @@ import { PortfolioTabContent } from './PortfolioTabContent';
 import { ProtocolsTabContent } from './ProtocolsTabContent';
 
 import type { IUseEarnPortfolioReturn } from '../hooks/useEarnPortfolio';
+import type { TabBarProps } from 'react-native-collapsible-tab-view';
 
-const EarnMainTabsComponent = ({
-  isMobile,
-  faqList,
-  isFaqLoading = false,
-  isAccountsLoading,
-  refreshEarnAccounts,
-  containerProps,
-  defaultTab,
-  portfolioData,
-}: {
-  isMobile: boolean;
+interface IEarnMainTabsProps {
   faqList: Array<{ question: string; answer: string }>;
   isFaqLoading?: boolean;
-  isAccountsLoading?: boolean;
-  refreshEarnAccounts?: () => void;
   containerProps?: any;
   defaultTab?: 'assets' | 'portfolio' | 'faqs';
   portfolioData: IUseEarnPortfolioReturn;
-}) => {
+}
+
+const EarnMainTabsComponent = ({
+  faqList,
+  isFaqLoading = false,
+  containerProps,
+  defaultTab,
+  portfolioData,
+}: IEarnMainTabsProps) => {
   const intl = useIntl();
   const tabsRef = useRef<ITabContainerRef>(null);
 
@@ -56,11 +58,18 @@ const EarnMainTabsComponent = ({
     [intl],
   );
 
+  const getTabName = useCallback(
+    (tabName: 'assets' | 'portfolio' | 'faqs' | undefined) => {
+      if (tabName === 'portfolio') return tabNames.portfolio;
+      if (tabName === 'faqs') return tabNames.faqs;
+      return tabNames.assets;
+    },
+    [tabNames],
+  );
+
   const initialTabName = useMemo(() => {
-    if (defaultTab === 'portfolio') return tabNames.portfolio;
-    if (defaultTab === 'faqs') return tabNames.faqs;
-    return tabNames.assets;
-  }, [defaultTab, tabNames]);
+    return getTabName(defaultTab);
+  }, [defaultTab, getTabName]);
 
   const tabKeyByName = useMemo(() => {
     const map: Record<string, 'assets' | 'portfolio' | 'faqs'> = {};
@@ -101,6 +110,18 @@ const EarnMainTabsComponent = ({
     }
   }, [defaultTab, initialTabName, isFocused]);
 
+  useEffect(() => {
+    const callback = ({ tab }: { tab: 'assets' | 'portfolio' | 'faqs' }) => {
+      if (tabsRef.current) {
+        tabsRef.current.jumpToTab(getTabName(tab));
+      }
+    };
+    appEventBus.on(EAppEventBusNames.SwitchEarnTab, callback);
+    return () => {
+      appEventBus.off(EAppEventBusNames.SwitchEarnTab, callback);
+    };
+  }, [getTabName]);
+
   useEffect(
     () => () => {
       tabsRef.current = null;
@@ -110,16 +131,18 @@ const EarnMainTabsComponent = ({
 
   const tabContainerWidth = useTabContainerWidth();
 
+  const renderTabBar = useCallback((tabBarProps: TabBarProps<string>) => {
+    const handleTabPress = (name: string) => {
+      tabBarProps.onTabPress?.(name);
+    };
+    return <Tabs.TabBar {...tabBarProps} onTabPress={handleTabPress} />;
+  }, []);
+
   return (
     <Tabs.Container
       width={platformEnv.isNative ? tabContainerWidth : undefined}
       ref={tabsRef}
-      renderTabBar={(tabBarProps) => {
-        const handleTabPress = (name: string) => {
-          tabBarProps.onTabPress?.(name);
-        };
-        return <Tabs.TabBar {...tabBarProps} onTabPress={handleTabPress} />;
-      }}
+      renderTabBar={renderTabBar}
       initialTabName={initialTabName}
       onTabChange={handleTabChange}
       {...containerProps}
@@ -140,7 +163,7 @@ const EarnMainTabsComponent = ({
       </Tabs.Tab>
       <Tabs.Tab name={tabNames.faqs}>
         <Tabs.ScrollView>
-          <YStack px="$5" pt="$6" gap="$8">
+          <YStack px="$5" pt="$6" gap="$8" maxWidth={960}>
             <FAQContent faqList={faqList} isLoading={isFaqLoading} />
           </YStack>
         </Tabs.ScrollView>
@@ -149,4 +172,13 @@ const EarnMainTabsComponent = ({
   );
 };
 
-export const EarnMainTabs = memo(EarnMainTabsComponent);
+export const MemoizedEarnMainTabs = memo(EarnMainTabsComponent);
+
+function ForwardedEarnMainTabs(
+  props: React.ComponentProps<typeof EarnMainTabsComponent>,
+) {
+  const isFocused = useIsFocused();
+  const isFirstFocused = useIsFirstFocused(isFocused);
+  return isFirstFocused ? <EarnMainTabsComponent {...props} /> : null;
+}
+export const EarnMainTabs = memo(ForwardedEarnMainTabs);

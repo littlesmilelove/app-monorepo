@@ -1,13 +1,18 @@
+import type { ICurrencyItem } from '@onekeyhq/kit/src/views/Setting/pages/Currency';
+
 export type IFetchAccountDeFiPositionsParams = {
   accountId: string;
   networkId: string;
   accountAddress?: string;
+  xpub?: string;
   isAllNetworks?: boolean;
   allNetworksAccountId?: string;
   allNetworksNetworkId?: string;
   saveToLocal?: boolean;
   excludeLowValueProtocols?: boolean;
-  lowValueProtocolsThreshold?: number;
+  lowValueProtocolsThresholdUsd?: number;
+  sourceCurrencyInfo?: ICurrencyItem;
+  targetCurrencyInfo?: ICurrencyItem;
 };
 
 export enum EDeFiAssetType {
@@ -55,6 +60,8 @@ export type IDeFiPosition = {
   rewards: IDeFiAsset[];
   metrics: IMetrics;
   source: IDeFiSource;
+  groupId: string;
+  name: string;
 };
 
 export type IProtocolSummary = {
@@ -62,6 +69,7 @@ export type IProtocolSummary = {
   protocolName: string;
   totalValue: number;
   totalDebt: number;
+  totalReward: number;
   netWorth: number;
   networkIds: string[];
   positionCount: number;
@@ -77,6 +85,7 @@ export type IFetchAccountDeFiPositionsResp = {
     totals: {
       totalValue: number;
       totalDebt: number;
+      totalReward: number;
       netWorth: number;
       chains: string[];
       protocolCount: number;
@@ -106,10 +115,12 @@ export type IDeFiProtocol = {
   categories: string[];
   positions: {
     category: string;
-    all: (IDeFiAsset & { type: EDeFiAssetType })[];
     assets: (IDeFiAsset & { type: EDeFiAssetType })[];
     debts: (IDeFiAsset & { type: EDeFiAssetType })[];
     rewards: (IDeFiAsset & { type: EDeFiAssetType })[];
     value: string;
+    groupId: string;
+    poolName: string;
+    poolFullName: string;
   }[];
 };

@@ -24,6 +24,7 @@ import {
 } from '../../../states/jotai/contexts/hyperliquid/atoms';
 import { PerpOpenOrdersList } from '../components/OrderInfoPanel/List/PerpOpenOrdersList';
 import { PerpPositionsList } from '../components/OrderInfoPanel/List/PerpPositionsList';
+import { PerpMobileNetworkAlert } from '../components/PerpMobileNetworkAlert';
 import { PerpOrderBook } from '../components/PerpOrderBook';
 import { PerpTips } from '../components/PerpTips';
 import { PerpTickerBar } from '../components/TickerBar/PerpTickerBar';
@@ -32,14 +33,18 @@ import { PerpTradingPanel } from '../components/TradingPanel/PerpTradingPanel';
 export enum ETabName {
   Positions = 'Positions',
   OpenOrders = 'OpenOrders',
+  SwapProOpenOrders = 'SwapProOpenOrders',
 }
 
 const tabNameToTranslationKey: Record<
   ETabName,
-  ETranslations.perp_position_title | ETranslations.perp_open_orders_title
+  | ETranslations.perp_position_title
+  | ETranslations.perp_open_orders_title
+  | ETranslations.Limit_open_order
 > = {
   [ETabName.Positions]: ETranslations.perp_position_title,
   [ETabName.OpenOrders]: ETranslations.perp_open_orders_title,
+  [ETabName.SwapProOpenOrders]: ETranslations.Limit_open_order,
 };
 
 export const TabBarItem = memo(
@@ -134,7 +139,11 @@ export function PerpMobileLayout() {
         <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
       }
     >
-      <PerpTips />
+      <YStack>
+        <PerpTips />
+        <PerpMobileNetworkAlert />
+      </YStack>
+
       <PerpTickerBar />
       <XStack gap="$2.5" px="$4" pb="$4">
         <YStack flexBasis="35%" flexShrink={1}>

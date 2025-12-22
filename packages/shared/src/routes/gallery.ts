@@ -52,6 +52,7 @@ export enum EGalleryRoutes {
   ComponentPasswordKeyboardGallery = 'component-PasswordKeyboard',
   ComponentPerp = 'component-Perp',
   ComponentCloudBackup = 'component-CloudBackup',
+  ComponentKeylessWallet = 'component-KeylessWallet',
   ComponentPopover = 'component-Popover',
   ComponentPortal = 'component-Portal',
   ComponentProgress = 'component-Progress',
@@ -107,4 +108,5 @@ export enum EGalleryRoutes {
   FontGallery = 'component-Font',
   ComponentPlayground = 'component-Playground',
   ComponentAuth = 'component-Auth',
+  ComponentOneKeyID = 'component-OneKeyID',
 }

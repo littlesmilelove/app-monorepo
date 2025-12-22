@@ -24,26 +24,23 @@ const SwapProAccountSelect = ({
     return accountUtils.shortenAddress({
       address: netAccountRes?.result?.address ?? '',
       leadingLength: 6,
-      trailingLength: 3,
+      trailingLength: 4,
     });
   }, [netAccountRes?.result?.address, intl]);
   return (
     <XStack
       onPress={onSelectAccountClick}
       justifyContent="space-between"
-      my="$1"
+      py="$1"
     >
       <XStack gap="$1.5">
         <Icon name="WalletOutline" size="$4" color="$iconSubdued" />
-        <SizableText size="$bodySm">{netAccountRes?.result?.name}</SizableText>
+        <SizableText size="$bodySm" color="$textSubdued">
+          {netAccountRes?.result?.name}
+        </SizableText>
       </XStack>
-      <XStack gap="$1.5">
-        <SizableText
-          size="$bodySm"
-          color="$textSubdued"
-          numberOfLines={1}
-          flexShrink={1}
-        >
+      <XStack>
+        <SizableText size="$bodySm" numberOfLines={1} flexShrink={1}>
           {accountValue}
         </SizableText>
         <Icon name="ChevronRightSmallOutline" size="$4" color="$iconSubdued" />

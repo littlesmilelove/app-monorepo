@@ -123,8 +123,11 @@ export enum EAppEventBusNames {
   BtcFreshAddressConnectDappRejected = 'BtcFreshAddressConnectDappRejected',
   ClientLogUploadProgress = 'ClientLogUploadProgress',
   SwitchDiscoveryTabInNative = 'SwitchDiscoveryTabInNative',
+  SwitchEarnTab = 'SwitchEarnTab',
   SwitchTabBar = 'SwitchTabBar',
   PushPageInTabletDetailView = 'PushPageInTabletDetailView',
   PushModalPageInTabletDetailView = 'PushModalPageInTabletDetailView',
   MarketHomePageEnter = 'MarketHomePageEnter',
+  MarketWatchListV2Changed = 'MarketWatchListV2Changed',
+  SwapLimitOrderBuildSuccess = 'SwapLimitOrderBuildSuccess',
 }

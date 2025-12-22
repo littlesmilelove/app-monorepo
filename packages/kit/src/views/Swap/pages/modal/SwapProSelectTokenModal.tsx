@@ -30,7 +30,12 @@ import { SwapProviderMirror } from '../SwapProviderMirror';
 import type { IMarketToken } from '../../../Market/MarketHomeV2/components/MarketTokenList/MarketTokenData';
 import type { RouteProp } from '@react-navigation/core';
 
-const SwapProSelectTokenPage = () => {
+interface ISwapProSelectTokenPageProps {
+  autoSearch?: boolean;
+}
+const SwapProSelectTokenPage = ({
+  autoSearch,
+}: ISwapProSelectTokenPageProps) => {
   const intl = useIntl();
   const [swapProTokenSelect, setSwapProSelectToken] =
     useSwapProSelectTokenAtom();
@@ -44,8 +49,10 @@ const SwapProSelectTokenPage = () => {
     setSelectedNetworkId(networkId);
   };
   const searchValueDebounce = useDebounce(searchValue, 500, { leading: true });
-  const { searchLoading, searchTokenList } =
-    useSwapProTokenSearch(searchValueDebounce);
+  const { searchLoading, searchTokenList } = useSwapProTokenSearch(
+    searchValueDebounce,
+    selectedNetworkId,
+  );
   const navigation = useAppNavigation();
   const handleTokenSelect = (token: IMarketToken) => {
     setSwapProSelectToken({
@@ -87,6 +94,7 @@ const SwapProSelectTokenPage = () => {
       <Page.Body>
         <Stack px="$5" pb="$4">
           <SearchBar
+            autoFocus={autoSearch}
             placeholder={intl.formatMessage({
               id: ETranslations.token_selector_search_placeholder,
             })}
@@ -120,7 +128,10 @@ const SwapProSelectTokenPage = () => {
               }}
             />
             {startListSelect ? (
-              <MarketWatchlistTokenList onItemPress={handleTokenSelect} />
+              <MarketWatchlistTokenList
+                onItemPress={handleTokenSelect}
+                hideNativeToken
+              />
             ) : (
               <MarketNormalTokenList
                 onItemPress={handleTokenSelect}
@@ -139,13 +150,13 @@ const SwapProSelectTokenModalWithProvider = () => {
     useRoute<
       RouteProp<IModalSwapParamList, EModalSwapRoutes.SwapProSelectToken>
     >();
-  const { storeName } = route.params;
+  const { storeName, autoSearch = false } = route.params;
   return (
     <MarketWatchListProviderMirrorV2
       storeName={EJotaiContextStoreNames.marketWatchListV2}
     >
       <SwapProviderMirror storeName={storeName}>
-        <SwapProSelectTokenPage />
+        <SwapProSelectTokenPage autoSearch={autoSearch} />
       </SwapProviderMirror>
     </MarketWatchListProviderMirrorV2>
   );

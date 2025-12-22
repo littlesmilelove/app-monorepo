@@ -4,11 +4,9 @@ import { useIntl } from 'react-intl';
 
 import { Icon, YStack } from '@onekeyhq/components';
 import {
-  useSwapFromTokenAmountAtom,
   useSwapLimitExpirationTimeAtom,
   useSwapLimitPartiallyFillAtom,
   useSwapProDirectionAtom,
-  useSwapProInputAmountAtom,
   useSwapProTokenSupportLimitAtom,
   useSwapProTradeTypeAtom,
 } from '@onekeyhq/kit/src/states/jotai/contexts/swap';
@@ -27,12 +25,8 @@ import SwapProAccountSelect from './SwapProAccountSelect';
 import SwapProActionButton from './SwapProActionButton';
 import SwapProInputContainer from './SwapProInputContainer';
 import SwapProLimitPriceValue from './SwapProLimitPriceValue';
-import SwapProSlider from './SwapProSlider';
 import { SwapProSlippageSetting } from './SwapProSlippageSetting';
-import SwapProToTotalValue from './SwapProToTotalValue';
 import SwapProTradeInfoGroup from './SwapProTradeInfoGroup';
-
-import type { IToken } from '../../../Market/MarketDetailV2/components/SwapPanel/types';
 
 interface ISwapProTradingPanelProps {
   swapProConfig: ISwapProSpeedConfig;
@@ -42,6 +36,7 @@ interface ISwapProTradingPanelProps {
   onSwapProActionClick: () => void;
   hasEnoughBalance: boolean;
   handleSelectAccountClick: () => void;
+  cleanInputAmount: () => void;
 }
 
 const SwapProTradingPanel = ({
@@ -52,11 +47,10 @@ const SwapProTradingPanel = ({
   onSwapProActionClick,
   handleSelectAccountClick,
   hasEnoughBalance,
+  cleanInputAmount,
 }: ISwapProTradingPanelProps) => {
   const [swapProDirection, setSwapProDirection] = useSwapProDirectionAtom();
   const [swapProTradeType, setSwapProTradeType] = useSwapProTradeTypeAtom();
-  const [, setSwapProInputAmount] = useSwapProInputAmountAtom();
-  const [, setFromInputAmount] = useSwapFromTokenAmountAtom();
   const [swapLimitExpirySelect, setSwapLimitExpirySelect] =
     useSwapLimitExpirationTimeAtom();
   const [swapLimitPartiallyFill, setSwapLimitPartiallyFill] =
@@ -88,25 +82,23 @@ const SwapProTradingPanel = ({
   useSwapProActionsQuote();
 
   return (
-    <YStack gap="$2" flex={1} justifyContent="space-between">
+    <YStack gap="$2.5" flex={1} justifyContent="space-between">
+      <TradeTypeSelector
+        value={swapProDirection}
+        size="small"
+        onChange={(value) => {
+          if (value) {
+            cleanInputAmount();
+            setSwapProDirection(value);
+          }
+        }}
+      />
       <YStack gap="$2">
-        <TradeTypeSelector
-          value={swapProDirection}
-          onChange={(value) => {
-            if (value) {
-              setSwapProDirection(value);
-            }
-          }}
-        />
         <SwapProTradeTypeSelector
           currentSelect={swapProTradeType}
           onSelectTradeType={(value) => {
             if (value === swapProTradeType) return;
-            setSwapProInputAmount('');
-            setFromInputAmount({
-              value: '',
-              isInput: true,
-            });
+            cleanInputAmount();
             setSwapProTradeType(value);
           }}
           selectItems={selectTradeTypeItems}
@@ -116,16 +108,16 @@ const SwapProTradingPanel = ({
         ) : null}
         <SwapProInputContainer
           isLoading={configLoading}
-          defaultTokens={swapProConfig.defaultTokens as IToken[]}
+          defaultTokens={swapProConfig.defaultTokens}
+          defaultLimitTokens={swapProConfig.defaultLimitTokens}
+          cleanInputAmount={cleanInputAmount}
         />
-        <SwapProSlider />
-        <SwapProToTotalValue />
+      </YStack>
+      <YStack>
+        {/* <SwapProToTotalValue /> */}
         <SwapProTradeInfoGroup balanceLoading={balanceLoading} />
         <SwapProAccountSelect onSelectAccountClick={handleSelectAccountClick} />
-        <SwapProSlippageSetting
-          autoDefaultValue={swapProConfig?.slippage}
-          isMEV={isMev}
-        />
+        <SwapProSlippageSetting isMEV={isMev} />
         {swapProTradeType === ESwapProTradeType.LIMIT ? (
           <>
             <LimitExpirySelect
@@ -141,10 +133,10 @@ const SwapProTradingPanel = ({
               }
               titleProps={{
                 size: '$bodySm',
+                color: '$textSubdued',
               }}
               valueProps={{
                 size: '$bodySm',
-                color: '$textSubdued',
               }}
               rightIcon={
                 <Icon
@@ -167,10 +159,10 @@ const SwapProTradingPanel = ({
               }
               titleProps={{
                 size: '$bodySm',
+                color: '$textSubdued',
               }}
               valueProps={{
                 size: '$bodySm',
-                color: '$textSubdued',
               }}
               rightIcon={
                 <Icon

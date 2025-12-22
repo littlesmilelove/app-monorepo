@@ -18,7 +18,6 @@ import {
   mevSwapNetworks,
   swapProTimeRangeItems,
   swapProviderRecommendApprovedWeights,
-  swapSlippageAutoValue,
 } from '@onekeyhq/shared/types/swap/SwapProvider.constants';
 import type {
   ESwapDirectionType,
@@ -31,7 +30,6 @@ import type {
   ISwapNativeTokenReserveGas,
   ISwapNetwork,
   ISwapPreSwapData,
-  ISwapSlippageSegmentItem,
   ISwapStep,
   ISwapTips,
   ISwapToken,
@@ -41,7 +39,6 @@ import type {
 import {
   ESwapNetworkFeeLevel,
   ESwapProTradeType,
-  ESwapSlippageSegmentKey,
   ESwapTabSwitchType,
   LIMIT_PRICE_DEFAULT_DECIMALS,
   defaultLimitExpirationTime,
@@ -723,11 +720,6 @@ export const {
 } = contextAtom<boolean>(true);
 
 export const {
-  atom: swapProToTotalValueAtom,
-  use: useSwapProToTotalValueAtom,
-} = contextAtom<string>('');
-
-export const {
   atom: swapProLimitPriceValueAtom,
   use: useSwapProLimitPriceValueAtom,
 } = contextAtom<string>('');
@@ -742,12 +734,6 @@ export const {
   use: useSwapSpeedQuoteResultAtom,
 } = contextAtom<IFetchQuoteResult | undefined>(undefined);
 
-export const { atom: swapProSlippageAtom, use: useSwapProSlippageAtom } =
-  contextAtom<ISwapSlippageSegmentItem>({
-    key: ESwapSlippageSegmentKey.AUTO,
-    value: swapSlippageAutoValue,
-  });
-
 export const {
   atom: swapProTokenSupportLimitAtom,
   use: useSwapProTokenSupportLimitAtom,
@@ -761,6 +747,9 @@ export const {
     (net) => net.networkId === swapProSelectToken?.networkId,
   );
 });
+
+export const { atom: swapProErrorAlertAtom, use: useSwapProErrorAlertAtom } =
+  contextAtom<{ title: string; message?: string } | undefined>(undefined);
 
 export const {
   atom: swapLimitPriceMarketPriceAtom,

@@ -14,6 +14,10 @@ import {
   appEventBus,
 } from '@onekeyhq/shared/src/eventBus/appEventBus';
 import { defaultLogger } from '@onekeyhq/shared/src/logger/logger';
+import type {
+  ECopyFrom,
+  EWatchlistFrom,
+} from '@onekeyhq/shared/src/logger/scopes/dex';
 import { ESortWay } from '@onekeyhq/shared/src/logger/scopes/dex/types';
 import platformEnv from '@onekeyhq/shared/src/platformEnv';
 
@@ -55,6 +59,9 @@ type IMarketTokenListBaseProps = {
   result: IMarketTokenListResult;
   isWatchlistMode?: boolean;
   showEndReachedIndicator?: boolean;
+  hideTokenAge?: boolean;
+  watchlistFrom?: EWatchlistFrom;
+  copyFrom?: ECopyFrom;
 };
 
 function MarketTokenListBase({
@@ -64,11 +71,20 @@ function MarketTokenListBase({
   result,
   isWatchlistMode = false,
   showEndReachedIndicator = false,
+  hideTokenAge = false,
+  watchlistFrom,
+  copyFrom,
 }: IMarketTokenListBaseProps) {
   const toMarketDetailPage = useToDetailPage();
   const { md } = useMedia();
 
-  const marketTokenColumns = useMarketTokenColumns(networkId, isWatchlistMode);
+  const marketTokenColumns = useMarketTokenColumns(
+    networkId,
+    isWatchlistMode,
+    hideTokenAge,
+    watchlistFrom,
+    copyFrom,
+  );
 
   const {
     data,
@@ -189,14 +205,6 @@ function MarketTokenListBase({
 
     return null;
   }, [isLoadingMore, showEndReachedIndicator, canLoadMore, data.length]);
-
-  if (showSkeleton && platformEnv.isNativeAndroid) {
-    return (
-      <Stack flex={1} alignItems="center" justifyContent="center" py="$4">
-        <Spinner size="small" />
-      </Stack>
-    );
-  }
 
   return (
     <Stack flex={1} width="100%">

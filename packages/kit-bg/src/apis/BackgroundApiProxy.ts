@@ -46,6 +46,7 @@ import type ServiceHyperliquidSubscription from '../services/ServiceHyperLiquid/
 import type ServiceHyperliquidWallet from '../services/ServiceHyperLiquid/ServiceHyperliquidWallet';
 import type ServiceInternalSignAndVerify from '../services/ServiceInternalSignAndVerify';
 import type ServiceIpTable from '../services/ServiceIpTable';
+import type ServiceKeylessWallet from '../services/ServiceKeylessWallet/ServiceKeylessWallet';
 import type ServiceLightning from '../services/ServiceLightning';
 import type ServiceLiteCardMnemonic from '../services/ServiceLiteCardMnemonic';
 import type ServiceLogger from '../services/ServiceLogger';
@@ -60,6 +61,7 @@ import type ServiceNFT from '../services/ServiceNFT';
 import type ServiceNostr from '../services/ServiceNostr';
 import type ServiceNotification from '../services/ServiceNotification';
 import type ServiceOnboarding from '../services/ServiceOnboarding';
+import type ServiceOneKeyID from '../services/ServiceOneKeyID';
 import type ServicePassword from '../services/ServicePassword';
 import type ServicePrime from '../services/ServicePrime';
 import type ServicePrimeCloudSync from '../services/ServicePrimeCloudSync';
@@ -372,11 +374,19 @@ class BackgroundApiProxy
     'serviceWalletStatus',
   ) as ServiceWalletStatus;
 
+  serviceKeylessWallet = this._createProxyService(
+    'serviceKeylessWallet',
+  ) as ServiceKeylessWallet;
+
   serviceIpTable = this._createProxyService('serviceIpTable') as ServiceIpTable;
 
   serviceNetworkDoctor = this._createProxyService(
     'serviceNetworkDoctor',
   ) as ServiceNetworkDoctor;
+
+  serviceOneKeyID = this._createProxyService(
+    'serviceOneKeyID',
+  ) as ServiceOneKeyID;
 }
 
 export default BackgroundApiProxy;

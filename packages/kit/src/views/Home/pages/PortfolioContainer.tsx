@@ -8,6 +8,7 @@ import { DeFiListBlock } from '../components/DeFiListBlock';
 import { EarnListView } from '../components/EarnListView';
 import { HomeTokenListProviderMirrorWrapper } from '../components/HomeTokenListProvider';
 import { PopularTrading } from '../components/PopularTrading';
+import { PullToRefresh, onHomePageRefresh } from '../components/PullToRefresh';
 import { RecentHistory } from '../components/RecentHistory';
 import { SupportHub } from '../components/SupportHub';
 import { TokenListBlock } from '../components/TokenListBlock';
@@ -17,11 +18,12 @@ import { PORTFOLIO_CONTAINER_RIGHT_SIDE_FIXED_WIDTH } from '../types';
 function PortfolioContainer() {
   const media = useMedia();
 
-  const tableLayout = media.gtXl;
+  const tableLayout = media.gtMd;
+  const showRecentHistory = media.gtXl;
 
   if (tableLayout) {
     return (
-      <XStack py="$3" px="$5" gap="$8">
+      <XStack pt="$3" pb="$4" px="$5" gap="$6">
         <YStack flex={1} gap="$8">
           <TokenListBlock tableLayout />
           <DeFiListBlock tableLayout />
@@ -30,18 +32,20 @@ function PortfolioContainer() {
           <Upgrade />
           <SupportHub />
         </YStack>
-        <YStack
-          width={PORTFOLIO_CONTAINER_RIGHT_SIDE_FIXED_WIDTH}
-          flexShrink={0}
-        >
-          <RecentHistory />
-        </YStack>
+        {showRecentHistory ? (
+          <YStack
+            width={PORTFOLIO_CONTAINER_RIGHT_SIDE_FIXED_WIDTH}
+            flexShrink={0}
+          >
+            <RecentHistory />
+          </YStack>
+        ) : null}
       </XStack>
     );
   }
 
   return (
-    <YStack gap="$8" px="$5" py="$3">
+    <YStack gap="$6" px="$5" pt="$3" pb="$4">
       <TokenListBlock />
       <DeFiListBlock />
       <PopularTrading />
@@ -62,7 +66,9 @@ function PortfolioContainerWithProvider() {
       <ProviderJotaiContextDeFiList>
         <ProviderJotaiContextHistoryList>
           <ProviderJotaiContextEarn>
-            <Tabs.ScrollView>
+            <Tabs.ScrollView
+              refreshControl={<PullToRefresh onRefresh={onHomePageRefresh} />}
+            >
               <PortfolioContainer />
             </Tabs.ScrollView>
           </ProviderJotaiContextEarn>

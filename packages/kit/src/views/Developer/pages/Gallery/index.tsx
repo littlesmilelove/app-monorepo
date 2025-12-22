@@ -528,6 +528,14 @@ const CloudBackupGallery = LazyLoadPage(
       '@onekeyhq/kit/src/views/Developer/pages/Gallery/Components/stories/CloudBackupGallery'
     ),
 );
+
+const KeylessWalletGallery = LazyLoadPage(
+  () =>
+    import(
+      '@onekeyhq/kit/src/views/Developer/pages/Gallery/Components/stories/KeylessWalletGallery'
+    ),
+);
+
 const TradingViewGallery = LazyLoadPage(
   () =>
     import(
@@ -580,6 +588,13 @@ const AuthGallery = LazyLoadPage(
   () =>
     import(
       '@onekeyhq/kit/src/views/Developer/pages/Gallery/Components/stories/AuthGallery'
+    ),
+);
+
+const OneKeyIDGallery = LazyLoadPage(
+  () =>
+    import(
+      '@onekeyhq/kit/src/views/Developer/pages/Gallery/Components/stories/OneKeyIDGallery'
     ),
 );
 
@@ -930,6 +945,10 @@ export const galleryScreenList: {
     component: CloudBackupGallery,
   },
   {
+    name: EGalleryRoutes.ComponentKeylessWallet,
+    component: KeylessWalletGallery,
+  },
+  {
     name: EGalleryRoutes.ComponentOrderBook,
     component: OrderBookGallery,
   },
@@ -1017,5 +1036,9 @@ export const galleryScreenList: {
   {
     name: EGalleryRoutes.ComponentAuth,
     component: AuthGallery,
+  },
+  {
+    name: EGalleryRoutes.ComponentOneKeyID,
+    component: OneKeyIDGallery,
   },
 ];

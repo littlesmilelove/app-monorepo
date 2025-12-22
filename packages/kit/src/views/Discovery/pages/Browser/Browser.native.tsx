@@ -22,6 +22,7 @@ import type { IPageNavigationProp } from '@onekeyhq/components/src/layouts/Navig
 import backgroundApiProxy from '@onekeyhq/kit/src/background/instance/backgroundApiProxy';
 import { TabletHomeContainer } from '@onekeyhq/kit/src/components/TabletHomeContainer';
 import { TabPageHeader } from '@onekeyhq/kit/src/components/TabPageHeader';
+import { UniversalSearchInput } from '@onekeyhq/kit/src/components/TabPageHeader/UniversalSearchInput';
 import useAppNavigation from '@onekeyhq/kit/src/hooks/useAppNavigation';
 import useListenTabFocusState from '@onekeyhq/kit/src/hooks/useListenTabFocusState';
 import { useBrowserTabActions } from '@onekeyhq/kit/src/states/jotai/contexts/discovery';
@@ -32,6 +33,7 @@ import {
   appEventBus,
 } from '@onekeyhq/shared/src/eventBus/appEventBus';
 import { ETranslations } from '@onekeyhq/shared/src/locale';
+import { isDualScreenDevice } from '@onekeyhq/shared/src/modules/DualScreenInfo';
 import platformEnv from '@onekeyhq/shared/src/platformEnv';
 import type {
   ETabDiscoveryRoutes,
@@ -48,6 +50,7 @@ import { useDebugComponentRemountLog } from '@onekeyhq/shared/src/utils/debug/de
 import { EAccountSelectorSceneName } from '@onekeyhq/shared/types';
 
 import { EarnHomeWithProvider } from '../../../Earn/EarnHome';
+import { MarketHomeWithProvider } from '../../../Market/MarketHomeV2/MarketHomeV2';
 import CustomHeaderTitle from '../../components/CustomHeaderTitle';
 import { HandleRebuildBrowserData } from '../../components/HandleData/HandleRebuildBrowserTabData';
 import HeaderRightToolBar from '../../components/HeaderRightToolBar';
@@ -69,7 +72,6 @@ import MobileBrowserContent from './MobileBrowserContent';
 import { withBrowserProvider } from './WithBrowserProvider';
 
 import type { RouteProp } from '@react-navigation/core';
-import type { LayoutChangeEvent } from 'react-native';
 import type { WebView } from 'react-native-webview';
 
 const useAndroidHardwareBack = platformEnv.isNativeAndroid
@@ -162,6 +164,7 @@ function MobileBrowser() {
   const isTabletDevice = useIsNativeTablet();
   const isTabletMainView = useIsTabletMainView();
   const isTabletDetailView = useIsTabletDetailView();
+  const isDualScreen = isDualScreenDevice();
   const route =
     useRoute<
       RouteProp<ITabDiscoveryParamList, ETabDiscoveryRoutes.TabDiscovery>
@@ -174,7 +177,7 @@ function MobileBrowser() {
       ? ETranslations.global_browser
       : defaultTab ||
           settings.selectedBrowserTab ||
-          ETranslations.global_browser,
+          ETranslations.global_market,
   );
   const handleChangeHeaderTab = useCallback(
     async (tab: ETranslations) => {
@@ -188,6 +191,17 @@ function MobileBrowser() {
     },
     [isLandscape, isTabletDetailView, isTabletDevice],
   );
+
+  const searchInitialTab = useMemo(() => {
+    if (selectedHeaderTab === ETranslations.global_market) {
+      return 'market' as const;
+    }
+    if (selectedHeaderTab === ETranslations.global_browser) {
+      return 'dapp' as const;
+    }
+    return undefined;
+  }, [selectedHeaderTab]);
+
   const previousDefaultTab = useRef<ETranslations | undefined>(defaultTab);
   useEffect(() => {
     if (previousDefaultTab.current !== defaultTab) {
@@ -342,14 +356,12 @@ function MobileBrowser() {
     handleGoBackHome,
   });
 
-  const [tabPageHeight, setTabPageHeight] = useState(
-    platformEnv.isNativeIOS ? 143 : 92,
-  );
-  const handleTabPageLayout = useCallback((e: LayoutChangeEvent) => {
-    // Use the actual measured height without arbitrary adjustments
-    const height = e.nativeEvent.layout.height - 20;
-    setTabPageHeight(height);
-  }, []);
+  const [tabPageHeight] = useState(platformEnv.isNativeIOS ? 153 : 92);
+  // const handleTabPageLayout = useCallback((e: LayoutChangeEvent) => {
+  //   // Use the actual measured height without arbitrary adjustments
+  //   const height = e.nativeEvent.layout.height - 20;
+  //   setTabPageHeight(height);
+  // }, []);
 
   const showDiscoveryPage = useMemo(() => {
     if (isTabletMainView) {
@@ -360,6 +372,16 @@ function MobileBrowser() {
     }
     return displayHomePage;
   }, [isTabletMainView, isTabletDetailView, displayHomePage, isLandscape]);
+
+  const isShowContent = useMemo(() => {
+    if (!isDualScreen) {
+      return true;
+    }
+    if (isTabletMainView && isLandscape) {
+      return true;
+    }
+    return isTabletDetailView && !isLandscape;
+  }, [isDualScreen, isTabletMainView, isLandscape, isTabletDetailView]);
 
   if (isTabletDetailView && isLandscape && displayHomePage) {
     return <TabletHomeContainer />;
@@ -390,6 +412,22 @@ function MobileBrowser() {
         </XStack>
       )}
       <Page.Body>
+        {/* Market Tab */}
+        {isShowContent ? (
+          <Stack
+            flex={1}
+            display={
+              selectedHeaderTab === ETranslations.global_market
+                ? undefined
+                : 'none'
+            }
+          >
+            <MarketHomeWithProvider
+              isFocused={selectedHeaderTab === ETranslations.global_market}
+            />
+          </Stack>
+        ) : null}
+        {/* Browser Tab */}
         <Stack
           flex={1}
           zIndex={3}
@@ -428,7 +466,7 @@ function MobileBrowser() {
             </Animated.View>
           </Freeze>
         </Stack>
-        {!isTabletDetailView || (isTabletDetailView && !isLandscape) ? (
+        {isShowContent ? (
           <Stack
             flex={1}
             display={
@@ -448,13 +486,16 @@ function MobileBrowser() {
       {showDiscoveryPage ? (
         <YStack
           position="absolute"
-          top={-20}
+          top={0}
           left={0}
           bg="$bgApp"
-          pt="$5"
+          pt="$12"
           width="100%"
-          onLayout={handleTabPageLayout}
+          // onLayout={handleTabPageLayout}
         >
+          <Stack position="absolute" top={top} px="$5">
+            <UniversalSearchInput size="medium" initialTab={searchInitialTab} />
+          </Stack>
           <TabPageHeader
             sceneName={EAccountSelectorSceneName.home}
             tabRoute={ETabRoutes.Discovery}

@@ -8,7 +8,6 @@ import { useThrottledCallback } from 'use-debounce';
 
 import {
   IconButton,
-  NumberSizeableText,
   Skeleton,
   Stack,
   useOnRouterChange,
@@ -16,6 +15,7 @@ import {
 } from '@onekeyhq/components';
 import backgroundApiProxy from '@onekeyhq/kit/src/background/instance/backgroundApiProxy';
 import { EmptyAccount } from '@onekeyhq/kit/src/components/Empty';
+import NumberSizeableTextWrapper from '@onekeyhq/kit/src/components/NumberSizeableTextWrapper';
 import { TokenListView } from '@onekeyhq/kit/src/components/TokenListView';
 import { perfTokenListView } from '@onekeyhq/kit/src/components/TokenListView/perfTokenListView';
 import { useAllNetworkRequests } from '@onekeyhq/kit/src/hooks/useAllNetwork';
@@ -85,7 +85,6 @@ import type {
   ITokenFiat,
 } from '@onekeyhq/shared/types/token';
 
-import { onHomePageRefresh } from '../PullToRefresh';
 import { RichBlock } from '../RichBlock/RichBlock';
 
 const networkIdsMap = getNetworkIdsMap();
@@ -1946,12 +1945,13 @@ function TokenListBlock({ tableLayout }: { tableLayout?: boolean }) {
   const renderSubTitle = useCallback(() => {
     if (tableLayout) {
       if (!tokenListState.initialized && tokenListState.isRefreshing) {
-        return <Skeleton.HeadingXl />;
+        return <Skeleton.HeadingLg />;
       }
 
       return (
-        <NumberSizeableText
-          size="$headingXl"
+        <NumberSizeableTextWrapper
+          hideValue
+          size="$headingLg"
           color="$textSubdued"
           formatter="value"
           formatterOptions={{
@@ -1959,7 +1959,7 @@ function TokenListBlock({ tableLayout }: { tableLayout?: boolean }) {
           }}
         >
           {accountTokensValue}
-        </NumberSizeableText>
+        </NumberSizeableTextWrapper>
       );
     }
 
@@ -2007,7 +2007,6 @@ function TokenListBlock({ tableLayout }: { tableLayout?: boolean }) {
         allAggregateTokenMap={allAggregateTokenMap}
         showNetworkIcon={!!network?.isAllNetworks}
         hideZeroBalanceTokens={!!network?.isAllNetworks}
-        onRefresh={onHomePageRefresh}
         manageTokenEnabled={manageTokenEnabled}
         onManageToken={handleOnManageToken}
         onPressToken={handleOnPressToken}

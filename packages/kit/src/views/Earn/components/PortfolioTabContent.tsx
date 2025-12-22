@@ -268,7 +268,6 @@ const DepositField = ({
     <XStack ai="center" flex={1}>
       <Token
         size="md"
-        borderRadius="$2"
         tokenImageUri={asset.token.info.logoURI}
         networkImageUri={asset.metadata.network.logoURI}
       />
@@ -335,11 +334,10 @@ const AssetStatusField = ({
   return (
     <FieldWrapper asset={asset}>
       {asset.assetsStatus?.map((status, index) => (
-        <XStack key={index} ai="center" maxWidth={200} flexWrap="wrap">
-          <EarnText mr="$2" size="$bodyMdMedium" text={status.title} />
-          <XStack>
+        <XStack key={index} ai="center" maxWidth={200} flexWrap="wrap" gap="$2">
+          <EarnText size="$bodyMdMedium" text={status.title} />
+          <XStack gap="$2">
             <EarnText
-              mr="$2"
               size="$bodyMd"
               color="$textSubdued"
               text={status.description}
@@ -914,7 +912,7 @@ const PortfolioSkeleton = () => (
   </YStack>
 );
 
-export const PortfolioTabContent = ({
+const BasePortfolioTabContent = ({
   portfolioData,
 }: {
   portfolioData: IUseEarnPortfolioReturn;
@@ -979,3 +977,5 @@ export const PortfolioTabContent = ({
 
   return <YStack>{filteredInvestments.map(investmentsItemRender)}</YStack>;
 };
+
+export const PortfolioTabContent = memo(BasePortfolioTabContent);

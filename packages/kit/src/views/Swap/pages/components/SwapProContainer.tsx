@@ -1,20 +1,31 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { RefreshControl, ScrollView } from 'react-native';
 
 import { IconButton, XStack, YStack } from '@onekeyhq/components';
-import { useSwapProSelectTokenAtom } from '@onekeyhq/kit/src/states/jotai/contexts/swap';
+import {
+  useSwapFromTokenAmountAtom,
+  useSwapProEnableCurrentSymbolAtom,
+  useSwapProErrorAlertAtom,
+  useSwapProInputAmountAtom,
+  useSwapProSelectTokenAtom,
+  useSwapProSliderValueAtom,
+} from '@onekeyhq/kit/src/states/jotai/contexts/swap';
+import { appEventBus } from '@onekeyhq/shared/src/eventBus/appEventBus';
+import { EAppEventBusNames } from '@onekeyhq/shared/src/eventBus/appEventBusNames';
+import type { IMarketBasicConfigNetwork } from '@onekeyhq/shared/types/marketV2';
 import type {
   IFetchLimitOrderRes,
+  ISwapProSpeedConfig,
   ISwapToken,
 } from '@onekeyhq/shared/types/swap/types';
 
 import { ETabName, TabBarItem } from '../../../Perp/layouts/PerpMobileLayout';
+import SwapProErrorAlert from '../../components/SwapProErrorAlert';
 import {
   useSwapProSupportNetworksTokenList,
   useSwapProTokenDetailInfo,
   useSwapProTokenInfoSync,
-  useSwapProTokenInit,
 } from '../../hooks/useSwapPro';
 
 import LimitOrderList from './LimitOrderList';
@@ -25,11 +36,19 @@ import SwapProTradeInfoPanel from './SwapProTradeInfoPanel';
 import SwapProTradingPanel from './SwapProTradingPanel';
 
 interface ISwapProContainerProps {
-  onProSelectToken: () => void;
+  onProSelectToken: (autoSearch?: boolean) => void;
   onOpenOrdersClick: (item: IFetchLimitOrderRes) => void;
   onSwapProActionClick: () => void;
   handleSelectAccountClick: () => void;
   onProMarketDetail: () => void;
+  config: {
+    isLoading: boolean;
+    speedConfig: ISwapProSpeedConfig;
+    balanceLoading: boolean;
+    isMEV: boolean;
+    hasEnoughBalance: boolean;
+    networkList: IMarketBasicConfigNetwork[];
+  };
 }
 
 const SwapProContainer = ({
@@ -38,18 +57,33 @@ const SwapProContainer = ({
   onSwapProActionClick,
   handleSelectAccountClick,
   onProMarketDetail,
+  config,
 }: ISwapProContainerProps) => {
+  const {
+    isLoading,
+    speedConfig,
+    balanceLoading,
+    isMEV,
+    hasEnoughBalance,
+    networkList,
+  } = config;
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<ETabName | string>(
     ETabName.Positions,
   );
   const [swapProTokenSelect, setSwapProSelectToken] =
     useSwapProSelectTokenAtom();
+  const [, setSwapProInputAmount] = useSwapProInputAmountAtom();
+  const [, setFromInputAmount] = useSwapFromTokenAmountAtom();
+  const [, setSwapProSliderValue] = useSwapProSliderValueAtom();
   const scrollViewRef = useRef<ScrollView>(null);
   const { fetchTokenMarketDetailInfo } = useSwapProTokenDetailInfo();
-  const { syncInputTokenBalance, syncToTokenPrice } = useSwapProTokenInfoSync();
+  const [swapProErrorAlert] = useSwapProErrorAlertAtom();
+  const [swapCurrentSymbolEnable] = useSwapProEnableCurrentSymbolAtom();
+  const { syncInputTokenBalance, syncToTokenPrice, netAccountRes } =
+    useSwapProTokenInfoSync();
   const { swapProLoadSupportNetworksTokenListRun } =
-    useSwapProSupportNetworksTokenList();
+    useSwapProSupportNetworksTokenList(networkList);
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     await Promise.all([
@@ -65,6 +99,20 @@ const SwapProContainer = ({
     syncInputTokenBalance,
     syncToTokenPrice,
   ]);
+  const cleanInputAmount = useCallback(() => {
+    setSwapProInputAmount('');
+    setFromInputAmount({
+      value: '',
+      isInput: true,
+    });
+    setSwapProSliderValue(0);
+  }, [setSwapProInputAmount, setFromInputAmount, setSwapProSliderValue]);
+
+  const netAccountAddress = netAccountRes.result?.addressDetail.address;
+  useEffect(() => {
+    cleanInputAmount();
+  }, [netAccountAddress, cleanInputAmount]);
+
   const onTokenPress = useCallback(
     (token: ISwapToken) => {
       setSwapProSelectToken({
@@ -85,39 +133,66 @@ const SwapProContainer = ({
     },
     [setSwapProSelectToken],
   );
-  const { isLoading, speedConfig, balanceLoading, isMEV, hasEnoughBalance } =
-    useSwapProTokenInit();
+
+  const changeTabToLimitOrderList = useCallback(() => {
+    setActiveTab(ETabName.SwapProOpenOrders);
+  }, [setActiveTab]);
+
+  useEffect(() => {
+    appEventBus.off(
+      EAppEventBusNames.SwapLimitOrderBuildSuccess,
+      changeTabToLimitOrderList,
+    );
+    appEventBus.on(
+      EAppEventBusNames.SwapLimitOrderBuildSuccess,
+      changeTabToLimitOrderList,
+    );
+    return () => {
+      appEventBus.off(
+        EAppEventBusNames.SwapLimitOrderBuildSuccess,
+        changeTabToLimitOrderList,
+      );
+    };
+  }, [changeTabToLimitOrderList]);
+
   return (
     <ScrollView
       style={{ flex: 1 }}
       ref={scrollViewRef}
       contentContainerStyle={{
         flexGrow: 1,
-        paddingTop: 10,
         paddingHorizontal: 20,
       }}
       showsVerticalScrollIndicator={false}
-      stickyHeaderIndices={[0, 2]}
+      stickyHeaderIndices={[0, 3]}
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="on-drag"
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
       }
     >
-      <XStack justifyContent="space-between" pb="$4" pt="$1" bg="$bgApp">
+      <XStack
+        justifyContent="space-between"
+        pb="$2"
+        pt="$2"
+        alignItems="center"
+        bg="$bgApp"
+      >
         <SwapProTokenSelector
-          onSelectTokenClick={onProSelectToken}
+          onSelectTokenClick={() => {
+            cleanInputAmount();
+            onProSelectToken();
+          }}
           configLoading={isLoading}
         />
         <IconButton
-          icon="ChartTrendingUp2Outline"
-          w="$6"
-          h="$6"
+          icon="TradingViewCandlesOutline"
+          variant="tertiary"
+          flexShrink={0}
           onPress={onProMarketDetail}
-          backgroundColor="$bgApp"
         />
       </XStack>
-      <XStack gap="$2.5" pb="$4" alignItems="stretch">
+      <XStack mt="$2" gap="$4" pb="$4" alignItems="stretch">
         <YStack flexBasis="40%" flexShrink={1} alignSelf="stretch">
           <SwapProTradeInfoPanel />
         </YStack>
@@ -130,9 +205,14 @@ const SwapProContainer = ({
             onSwapProActionClick={onSwapProActionClick}
             hasEnoughBalance={hasEnoughBalance}
             handleSelectAccountClick={handleSelectAccountClick}
+            cleanInputAmount={cleanInputAmount}
           />
         </YStack>
       </XStack>
+      <SwapProErrorAlert
+        title={swapProErrorAlert?.title}
+        message={swapProErrorAlert?.message}
+      />
       <XStack
         bg="$bgApp"
         borderBottomWidth="$0.5"
@@ -147,8 +227,8 @@ const SwapProContainer = ({
             onPress={setActiveTab}
           />
           <TabBarItem
-            name={ETabName.OpenOrders}
-            isFocused={activeTab === ETabName.OpenOrders}
+            name={ETabName.SwapProOpenOrders}
+            isFocused={activeTab === ETabName.SwapProOpenOrders}
             onPress={setActiveTab}
           />
         </XStack>
@@ -159,17 +239,28 @@ const SwapProContainer = ({
           flex={1}
         >
           <SwapProCurrentSymbolEnable />
-          <SwapProPositionsList onTokenPress={onTokenPress} />
+          <SwapProPositionsList
+            onTokenPress={onTokenPress}
+            onSearchClick={() => {
+              onProSelectToken(true);
+              scrollViewRef.current?.scrollTo({
+                y: 0,
+                animated: false,
+              });
+            }}
+          />
         </YStack>
         <YStack
-          display={activeTab === ETabName.OpenOrders ? 'flex' : 'none'}
+          display={activeTab === ETabName.SwapProOpenOrders ? 'flex' : 'none'}
           flex={1}
         >
           <SwapProCurrentSymbolEnable />
           <LimitOrderList
             onClickCell={onOpenOrdersClick}
             type="open"
-            filterToken={swapProTokenSelect}
+            filterToken={
+              swapCurrentSymbolEnable ? swapProTokenSelect : undefined
+            }
           />
         </YStack>
       </YStack>

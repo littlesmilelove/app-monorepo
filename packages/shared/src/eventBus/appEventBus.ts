@@ -62,6 +62,7 @@ export interface IHardwareErrorDialogPayload {
 }
 
 export enum EFinalizeWalletSetupSteps {
+  // Regular wallet steps
   CreatingWallet = 'CreatingWallet',
   GeneratingAccounts = 'GeneratingAccounts',
   EncryptingData = 'EncryptingData',
@@ -75,6 +76,7 @@ export type IEventBusPayloadShowToast = {
   message?: string;
   duration?: number;
   errorCode?: number;
+  httpStatusCode?: number;
   toastId?: string;
   i18nKey?: ETranslations;
   requestId?: string;
@@ -402,8 +404,14 @@ export interface IAppEventBusPayload {
     message?: string;
   };
   [EAppEventBusNames.SwitchDiscoveryTabInNative]: {
-    tab: ETranslations.global_browser | ETranslations.global_earn;
+    tab:
+      | ETranslations.global_market
+      | ETranslations.global_browser
+      | ETranslations.global_earn;
     openUrl?: boolean;
+  };
+  [EAppEventBusNames.SwitchEarnTab]: {
+    tab: 'assets' | 'portfolio' | 'faqs';
   };
   [EAppEventBusNames.SwitchTabBar]: {
     route: ETabRoutes;
@@ -416,6 +424,8 @@ export interface IAppEventBusPayload {
   [EAppEventBusNames.MarketHomePageEnter]: {
     from: EEnterWay;
   };
+  [EAppEventBusNames.MarketWatchListV2Changed]: undefined;
+  [EAppEventBusNames.SwapLimitOrderBuildSuccess]: undefined;
 }
 
 export enum EEventBusBroadcastMethodNames {

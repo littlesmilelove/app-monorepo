@@ -25,7 +25,6 @@ import {
   swapDefaultSetTokens,
   swapRateDifferenceMax,
   swapRateDifferenceMin,
-  swapSlippageAutoValue,
   swapTokenCatchMapMaxCount,
 } from '@onekeyhq/shared/types/swap/SwapProvider.constants';
 import type {
@@ -77,10 +76,8 @@ import {
   swapProInputAmountAtom,
   swapProSelectTokenAtom,
   swapProSellToTokenAtom,
-  swapProSlippageAtom,
   swapProSupportNetworksTokenListAtom,
   swapProSupportNetworksTokenListLoadingAtom,
-  swapProToTotalValueAtom,
   swapProTokenDetailWebsocketAtom,
   swapProTokenMarketDetailInfoAtom,
   swapProTokenMarketDetailInfoLoadingAtom,
@@ -857,16 +854,12 @@ class ContentJotaiActionsSwap extends ContextJotaiActionsBase {
         });
         if (res && res.length > 0) {
           const quoteResult = res[0];
-          set(swapSpeedQuoteResultAtom(), quoteResult);
-          if (quoteResult.autoSuggestedSlippage) {
-            const slippageItem = get(swapProSlippageAtom());
-            if (slippageItem.key === ESwapSlippageSegmentKey.AUTO) {
-              set(swapProSlippageAtom(), {
-                key: ESwapSlippageSegmentKey.AUTO,
-                value: quoteResult.autoSuggestedSlippage,
-              });
-            }
+          const quoteResultFromAmount = quoteResult.fromAmount;
+          const fromTokenCurrentAmount = get(swapProInputAmountAtom());
+          if (quoteResultFromAmount !== fromTokenCurrentAmount) {
+            return;
           }
+          set(swapSpeedQuoteResultAtom(), quoteResult);
         }
         set(swapSpeedQuoteFetchingAtom(), false);
       } catch (e: any) {
@@ -939,11 +932,6 @@ class ContentJotaiActionsSwap extends ContextJotaiActionsBase {
   cleanSpeedQuote = contextAtomMethod(async (get, set) => {
     set(swapSpeedQuoteFetchingAtom(), false);
     set(swapSpeedQuoteResultAtom(), undefined);
-    set(swapProToTotalValueAtom(), '');
-    set(swapProSlippageAtom(), {
-      key: ESwapSlippageSegmentKey.AUTO,
-      value: swapSlippageAutoValue,
-    });
   });
 
   cleanLimitOrderMarketPriceInterval = () => {
@@ -1853,7 +1841,15 @@ class ContentJotaiActionsSwap extends ContextJotaiActionsBase {
       type: ESwapTabSwitchType,
       swapAccountNetworkId?: string,
     ) => {
+      const oldType = get(swapTypeSwitchAtom());
       set(swapTypeSwitchAtom(), type);
+      if (
+        platformEnv.isNative &&
+        (type === ESwapTabSwitchType.LIMIT ||
+          oldType === ESwapTabSwitchType.LIMIT)
+      ) {
+        return;
+      }
       const fromTokenAmount = get(swapFromTokenAmountAtom());
       const fromTokenAmountBN = new BigNumber(fromTokenAmount.value);
       if (

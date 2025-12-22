@@ -17,7 +17,7 @@ interface ISwapProBuySellInfoProps {
 const getCountByTimeRange = (
   detail: IMarketTokenDetail | undefined,
   timeRange: ESwapProTimeRange,
-  type: 'buy' | 'sell' | 'volume',
+  type: 'buy' | 'sell' | 'vBuy' | 'vSell',
   endString: string,
 ) => {
   const key = `${type}${timeRange}${endString}` as keyof IMarketTokenDetail;
@@ -39,14 +39,14 @@ const SwapProBuySellInfo = ({
     return new BigNumber(buyCount ?? 0).plus(sellCount ?? 0).toNumber();
   }, [buyCount, sellCount]);
   const buyPercentage = useMemo(() => {
-    if (totalCount === 0) return 0;
+    if (!totalCount || totalCount === 0) return 0;
     return new BigNumber(buyCount ?? 0)
       .dividedBy(totalCount ?? 0)
       .multipliedBy(100)
       .toNumber();
   }, [buyCount, totalCount]);
   const sellPercentage = useMemo(() => {
-    if (totalCount === 0) return 0;
+    if (!totalCount || totalCount === 0) return 0;
     return new BigNumber(sellCount ?? 0)
       .dividedBy(totalCount ?? 0)
       .multipliedBy(100)
@@ -56,7 +56,7 @@ const SwapProBuySellInfo = ({
     const buyVolumeValue = getCountByTimeRange(
       tokenDetailInfo,
       timeRange,
-      'volume',
+      'vBuy',
       '',
     );
     return numberFormat(buyVolumeValue.toString(), {
@@ -70,7 +70,7 @@ const SwapProBuySellInfo = ({
     const sellVolumeValue = getCountByTimeRange(
       tokenDetailInfo,
       timeRange,
-      'volume',
+      'vSell',
       '',
     );
     return numberFormat(sellVolumeValue.toString(), {
@@ -119,11 +119,16 @@ const SwapProBuySellInfo = ({
             borderWidth={1}
             borderRadius="$1"
           >
-            <SizableText size="$bodySm" color="$textSuccess">
+            <SizableText size="$bodySmMedium" color="$textSuccess">
               B
             </SizableText>
           </Stack>
-          <SizableText size="$bodySm" color="$textSuccess">
+          <SizableText
+            size="$bodyXs"
+            color="$textSuccess"
+            ml="$0.5"
+            fontFamily="$monoRegular"
+          >
             {buyPercentage.toFixed(2)}%
           </SizableText>
         </XStack>
@@ -134,7 +139,12 @@ const SwapProBuySellInfo = ({
           position="relative"
           zIndex={1}
         >
-          <SizableText size="$bodySm" color="$textCritical">
+          <SizableText
+            size="$bodyXs"
+            color="$textCritical"
+            mr="$0.5"
+            fontFamily="$monoRegular"
+          >
             {sellPercentage.toFixed(2)}%
           </SizableText>
           <Stack
@@ -153,10 +163,18 @@ const SwapProBuySellInfo = ({
         </XStack>
       </XStack>
       <XStack justifyContent="space-between">
-        <SizableText size="$bodySm" color="$textSuccess">
+        <SizableText
+          size="$bodySm"
+          color="$textSuccess"
+          fontFamily="$monoRegular"
+        >
           {buyVolume}
         </SizableText>
-        <SizableText size="$bodySm" color="$textCritical">
+        <SizableText
+          size="$bodySm"
+          color="$textCritical"
+          fontFamily="$monoRegular"
+        >
           {sellVolume}
         </SizableText>
       </XStack>

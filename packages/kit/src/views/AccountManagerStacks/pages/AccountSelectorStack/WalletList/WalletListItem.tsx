@@ -192,11 +192,15 @@ export function WalletListItem({
   shouldShowCreateHiddenWalletButtonFn,
   ...rest
 }: IWalletListItemProps) {
+  const isKeylessWallet = accountUtils.isKeylessWallet({
+    walletId: wallet?.id ?? '',
+  });
+
   let walletAvatarProps: IWalletAvatarProps = {
     wallet,
-    status: 'default', // 'default' | 'connected';
+    status: isKeylessWallet ? 'keyless' : 'default',
     badge,
-    firmwareTypeBadge: wallet?.firmwareTypeBadge,
+    firmwareTypeBadge: wallet?.firmwareTypeAtCreated,
   };
   const [accountSelectorStatus] = useAccountSelectorStatusAtom();
   noop(accountSelectorStatus?.passphraseProtectionChangedAt);

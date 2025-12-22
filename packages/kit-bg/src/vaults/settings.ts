@@ -35,6 +35,7 @@ import {
 } from '@onekeyhq/shared/src/engine/engineConsts';
 import { OneKeyLocalError } from '@onekeyhq/shared/src/errors';
 import { appLocale } from '@onekeyhq/shared/src/locale/appLocale';
+import cacheUtils from '@onekeyhq/shared/src/utils/cacheUtils';
 import networkUtils from '@onekeyhq/shared/src/utils/networkUtils';
 
 import type {
@@ -83,11 +84,6 @@ const settingsLoader: Record<
   [IMPL_AGGREGATE]: () => import('./impls/aggregate/settings'),
 };
 
-const vaultSettingsPromiseCacheByImpl = new Map<
-  string,
-  Promise<IVaultSettings>
->();
-
 function validateVaultSettings({
   settings,
   label,
@@ -109,31 +105,22 @@ function validateVaultSettings({
   }
 }
 
-async function loadVaultSettingsByImpl(impl: string): Promise<IVaultSettings> {
-  const cachedPromise = vaultSettingsPromiseCacheByImpl.get(impl);
-  if (cachedPromise) {
-    return cachedPromise;
-  }
+const loadVaultSettingsByImpl = cacheUtils.memoizee(
+  async (impl: string): Promise<IVaultSettings> => {
+    const loader = settingsLoader[impl];
+    if (!loader) {
+      throw new OneKeyLocalError(`no settings found: impl=${impl}`);
+    }
 
-  const loader = settingsLoader[impl];
-  if (!loader) {
-    throw new OneKeyLocalError(`no settings found: impl=${impl}`);
-  }
-
-  const promise = (async () => {
     const settings = (await loader()).default;
     validateVaultSettings({ settings, label: `impl=${impl}` });
     return settings;
-  })();
-
-  vaultSettingsPromiseCacheByImpl.set(impl, promise);
-
-  promise.catch(() => {
-    vaultSettingsPromiseCacheByImpl.delete(impl);
-  });
-
-  return promise;
-}
+  },
+  {
+    promise: true,
+    normalizer: (args) => args[0],
+  },
+);
 
 export async function getVaultSettings({ networkId }: { networkId: string }) {
   if (!networkId) {

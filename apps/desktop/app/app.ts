@@ -55,6 +55,7 @@ import {
 } from './resoucePath';
 import { initSentry } from './sentry';
 import { startServices } from './service';
+import { setMainWindow } from './service/oauthLocalServer/oauthLocalServer';
 
 logger.initialize();
 logger.transports.file.maxSize = 1024 * 1024 * 10;
@@ -562,6 +563,9 @@ async function createMainWindow() {
 
   void browserWindow.loadURL(src);
 
+  // Set main window reference for OAuth server
+  setMainWindow(browserWindow);
+
   // Protocol handler for win32
   if (isWin || isMac) {
     // Keep only command line / deep linked arguments
@@ -605,8 +609,11 @@ async function createMainWindow() {
 
   // dom-ready is fired after ipcMain:app/ready
   browserWindow.webContents.on('dom-ready', () => {
-    isAppReady = true;
     logger.info('set isAppReady on browserWindow dom-ready', isAppReady);
+    // Emit ready event first, so pending deep link handlers can execute
+    // before isAppReady is set to true (which affects the cache logic)
+    emitter.emit('ready');
+    isAppReady = true;
   });
 
   browserWindow.webContents.setWindowOpenHandler(({ url }) => {

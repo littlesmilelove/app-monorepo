@@ -51,8 +51,10 @@ import {
 import { PERPS_NETWORK_ID } from '@onekeyhq/shared/src/consts/perp';
 import { ETranslations } from '@onekeyhq/shared/src/locale';
 import { appLocale } from '@onekeyhq/shared/src/locale/appLocale';
+import { defaultLogger } from '@onekeyhq/shared/src/logger/logger';
 import platformEnv from '@onekeyhq/shared/src/platformEnv';
 import { EModalRoutes } from '@onekeyhq/shared/src/routes';
+import { EModalReceiveRoutes } from '@onekeyhq/shared/src/routes/receive';
 import type { IModalSwapParamList } from '@onekeyhq/shared/src/routes/swap';
 import { EModalSwapRoutes } from '@onekeyhq/shared/src/routes/swap';
 import accountUtils from '@onekeyhq/shared/src/utils/accountUtils';
@@ -387,6 +389,48 @@ function DepositWithdrawContent({
       },
     });
   }, [navigation]);
+
+  const accountResult = usePerpsAccountResult(selectedAccount);
+
+  const handleBuyPress = useCallback(() => {
+    if (!currentPerpsDepositSelectedToken || !accountResult) {
+      return;
+    }
+
+    defaultLogger.wallet.walletActions.buyOnLowBalance({
+      source: 'perp',
+      networkId: currentPerpsDepositSelectedToken.networkId ?? '',
+      tokenSymbol: currentPerpsDepositSelectedToken.symbol ?? '',
+      tokenAddress: currentPerpsDepositSelectedToken.contractAddress ?? '',
+      walletType: accountResult.wallet?.type ?? '',
+    });
+
+    const navParams = {
+      accountId: selectedAccount.accountId ?? '',
+      networkId: currentPerpsDepositSelectedToken.networkId ?? '',
+      walletId: accountResult.wallet?.id ?? '',
+      indexedAccountId: selectedAccount.indexedAccountId,
+      token: {
+        networkId: currentPerpsDepositSelectedToken.networkId ?? '',
+        address: currentPerpsDepositSelectedToken.contractAddress ?? '',
+        name: currentPerpsDepositSelectedToken.name ?? '',
+        symbol: currentPerpsDepositSelectedToken.symbol ?? '',
+        decimals: currentPerpsDepositSelectedToken.decimals,
+        logoURI: currentPerpsDepositSelectedToken.logoURI,
+        isNative: currentPerpsDepositSelectedToken.isNative,
+      },
+    };
+
+    navigation.pushModal(EModalRoutes.ReceiveModal, {
+      screen: EModalReceiveRoutes.ReceiveSelector,
+      params: navParams,
+    });
+  }, [
+    navigation,
+    currentPerpsDepositSelectedToken,
+    selectedAccount,
+    accountResult,
+  ]);
 
   const checkAccountSupport = useMemo(() => {
     const isWatchingAccount = accountUtils.isWatchingAccount({
@@ -1069,6 +1113,22 @@ function DepositWithdrawContent({
     shouldResetApprove,
   ]);
 
+  const shouldShowBuyButton = useMemo(
+    () =>
+      !errorMessage &&
+      isInsufficientBalance &&
+      selectedAction === 'deposit' &&
+      checkAccountSupport &&
+      !balanceLoading,
+    [
+      errorMessage,
+      isInsufficientBalance,
+      selectedAction,
+      checkAccountSupport,
+      balanceLoading,
+    ],
+  );
+
   useEffect(() => {
     if (!currentPerpsDepositSelectedToken) {
       const arbUSDCToken = depositTokensWithPrice.find((token) =>
@@ -1332,6 +1392,26 @@ function DepositWithdrawContent({
             {errorMessage}
           </SizableText>
         ) : null}
+        {shouldShowBuyButton ? (
+          <XStack gap="$1" alignItems="center">
+            <SizableText size="$bodySm" color="$textSubdued">
+              {intl.formatMessage(
+                { id: ETranslations.perps_buy_tip },
+                { token: currentPerpsDepositSelectedToken?.symbol ?? '' },
+              )}
+            </SizableText>
+
+            <DashText
+              onPress={handleBuyPress}
+              color="$textSuccess"
+              size="$bodySmMedium"
+              cursor="pointer"
+              dashColor="$textSuccess"
+            >
+              {intl.formatMessage({ id: ETranslations.global_top_up })}
+            </DashText>
+          </XStack>
+        ) : null}
       </YStack>
       {/* Available Balance & You Will Get */}
       <YStack gap="$3">
@@ -1464,7 +1544,7 @@ function DepositWithdrawContent({
               )}
             </SizableText>
           ) : (
-            <XStack gap="$1" alignItems="center">
+            <XStack gap="$1" alignItems="center" justifyContent="center">
               {perpDepositQuoteLoading ? (
                 <Skeleton w={60} h={14} />
               ) : (

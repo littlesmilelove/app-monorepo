@@ -16,10 +16,13 @@ function startApp() {
   // eslint-disable-next-line @typescript-eslint/no-require-imports, global-require
   const { initSentry } = require('@onekeyhq/shared/src/modules3rdParty/sentry');
   // eslint-disable-next-line @typescript-eslint/no-require-imports, global-require
+  const { ReactNativeDeviceUtils } = require('@onekeyfe/react-native-device-utils');
+  // eslint-disable-next-line @typescript-eslint/no-require-imports, global-require
   const { installFunctionHitLogger } = require('@onekeyhq/shared/src/performance/heartbeatLogger');
   // eslint-disable-next-line @typescript-eslint/no-require-imports, global-require
   const App = require('./App').default;
 
+  ReactNativeDeviceUtils.initEventListeners();
   initSentry();
   installFunctionHitLogger();
 
